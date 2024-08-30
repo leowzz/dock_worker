@@ -4,7 +4,7 @@ from loguru import logger
 from config import settings
 
 # Initialize GitHubActionTrigger
-WORKFLOW_NAME = settings.workflow_name
+WORKFLOW_NAME = settings.default_workflow_name
 
 # Streamlit page title
 st.title("GitHub Action Workflow Trigger")

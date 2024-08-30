@@ -1,6 +1,6 @@
 # https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#workflow_dispatch
 name: ApiDockerImagePusher
-run-name: Making ${{ inputs.origin_image }} by @${{ github.actor }} to aliyun_repo
+run-name: Making ${{ inputs.origin_image }} by @${{ github.actor }} to ${{ inputs.self_repo_image }}
 on:
   workflow_dispatch:
     inputs:

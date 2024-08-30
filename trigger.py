@@ -60,7 +60,7 @@ class GitHubActionTrigger:
             proxies=self.proxy,
         )
         resp_json = response.json()
-        logger.info(f"get workers: {resp_json}")
+        logger.debug(f"get workers: {resp_json}")
         res = self.WorkflowsResponse.model_validate(resp_json)
         return res
 
@@ -97,6 +97,7 @@ class GitHubActionTrigger:
         if response.status_code == 204:
             logger.success(f"Workflow {workflow.name} triggered successfully")
             return True
+
 
 if __name__ == "__main__":
     action_trigger = GitHubActionTrigger()

@@ -1,5 +1,6 @@
+loguru~=0.7.2
 pydantic~=2.8.2
 pydantic_settings~=2.4.0
-requests~=2.32.3
-loguru~=0.7.2
+Requests~=2.32.3
+rich~=13.8.0
 streamlit~=1.37.1
