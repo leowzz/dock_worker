@@ -20,18 +20,21 @@ def cached_get_workflows():
 
 
 workflows = cached_get_workflows()
-selected_workflow = next((_ for _ in workflows.workflows if _.name == WORKFLOW_NAME), None)
+selected_workflow = next(
+    (_ for _ in workflows.workflows if _.name == WORKFLOW_NAME), None
+)
 if not selected_workflow:
-    st.error(f"Workflow {WORKFLOW_NAME} not found")
+    st.error(f"Workflow `{WORKFLOW_NAME}` not found, please check the workflow name and `restart` the app")
     st.stop()
-st.write(f"Selected Workflow: {selected_workflow.name}")
+st.write(f"Selected Workflow: `{selected_workflow.name}`")
 
 # Input fields for source and destination image
 origin_image = st.text_input("源镜像", "python:3.10.14-slim-bullseye")
 self_repo_image = st.text_input("私有仓库镜像", "python_self:3.10.14-slim-bullseye")
 
 # Button to trigger the workflow
-if st.button("Trigger Workflow"):
+if st.button("开始复制"):
+
     # Get workflows from cache
     trigger_args = action_trigger.WorkflowTriggerArgs(
         origin_image=origin_image,
@@ -42,4 +45,7 @@ if st.button("Trigger Workflow"):
         "leowzz", "docker_image_pusher", selected_workflow, trigger_args=trigger_args
     )
     if trigger_ok:
-        st.success(f"Workflow {selected_workflow.name} triggered successfully")
+        st.balloons()
+        st.toast(f"trigger success", icon='✨')
+    else:
+        st.toast("trigger failed", icon='😱')
