@@ -4,16 +4,12 @@ run-name: Making ${{ inputs.image }} by @${{ github.actor }} to aliyun_repo
 on:
   workflow_dispatch:
     inputs:
-      image:
-        description: '全名, 例如`ubuntu:22.10`'
+      origin_image:
+        description: '原始镜像全名, 例如`ubuntu:22.10`'
         required: true
         type: string
-      image_name:
-        description: '你的镜像名称, 例如 ubuntu:22.10 中的`ubuntu`'
-        required: true
-        type: string
-      image_tag:
-        description: '你的镜像标签, 例如 ubuntu:22.10 中的`22.10`'
+      self_repo_image:
+        description: '放置在私有仓库的镜像名称 repo/name_space/{self_repo_image}'
         required: true
         type: string
 
@@ -22,9 +18,8 @@ env:
   ALIYUN_NAME_SPACE: "${{ secrets.ALIYUN_NAME_SPACE }}"
   ALIYUN_REGISTRY_USER: "${{ secrets.ALIYUN_REGISTRY_USER }}"
   ALIYUN_REGISTRY_PASSWORD: "${{ secrets.ALIYUN_REGISTRY_PASSWORD }}"
-  IMAGE: ${{ github.event.inputs.image }}
-  IMAGE_NAME: ${{ github.event.inputs.image_name }}
-  IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+  ORIGIN_IMAGE: ${{ github.event.inputs.origin_image }}
+  SELF_REPO_IMAGE: ${{ github.event.inputs.self_repo_image }}
 
 jobs:
   log-the-inputs:

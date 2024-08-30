@@ -80,24 +80,28 @@ def create_workflow_dispatch_event(owner, repo, workflow_id):
         },
         proxies=proxy if settings.http_proxy else None,
         json={
-            "ref": "api_hook",
+            "ref": "main",
             "inputs": {
-                "image": "python:3.10.14-slim-bullseye",
+                "origin_image": "python:3.10.14-slim-bullseye",
+                "self_repo_image": "python_self:3.10.14-slim-bullseye"  # 私有仓库镜像, aliyun.com/your_space/{self_repo_image}
             },
         },
     )
-    return response
+    return response.text
 
 
 # python:3.10.14-slim-bullseye
 
 if __name__ == "__main__":
     workflows = get_workflows("leowzz", "docker_image_pusher")
-    logger.info(workflows)
+    # logger.info(workflows)
     api_workflow_id = workflows.workflows[0].id
-    api_workflow_info = get_workflow_info("leowzz", "docker_image_pusher", api_workflow_id)
-    logger.info(api_workflow_info)
-
+    logger.debug(f"{workflows.workflows[0]=}")
+    # api_workflow_info = get_workflow_info("leowzz", "docker_image_pusher", api_workflow_id)
+    # logger.info(api_workflow_info)
+    logger.info(f"{api_workflow_id=}")
+    trigger_res = create_workflow_dispatch_event("leowzz", "docker_image_pusher", api_workflow_id)
+    logger.info(f"{trigger_res=}")
 # response = requests.post(url, headers=headers, json=data)
 # response = requests.get(url, headers=headers)
 # print(response.status_code)
