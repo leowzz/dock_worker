@@ -66,15 +66,21 @@ class GitHubActionTrigger:
     def get_workflow_info(self, owner, repo, workflow_id):
         response = requests.get(
             url=f"{self.github_api_endpoint}/repos/{owner}/{repo}/actions/workflows/{workflow_id}",
-            headers=self.get_headers(),
+            headers=self.headers,
             proxies=self.proxy,
         )
         resp_json = response.json()
         res = self.WorkflowDetails.model_validate(resp_json)
         return res
 
-    def create_workflow_dispatch_event(self, owner, repo, workflow_id, ref="main",
-                                       trigger_args: WorkflowTriggerArgs = None):
+    def create_workflow_dispatch_event(
+        self,
+        owner,
+        repo,
+        workflow_id,
+        ref="main",
+        trigger_args: WorkflowTriggerArgs = None,
+    ):
         if not trigger_args:
             return None
         response = requests.post(
