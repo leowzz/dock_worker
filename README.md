@@ -5,6 +5,24 @@
 - 支持最大40GB的大型镜像<br>
 - 使用阿里云的官方线路，速度快<br>
 
+---
+leo03w 20240830
+
+新增 `api_hook.yaml` 带参workflow, 支持api方式启动github action, 可传 `原始镜像地址` 和 `目的镜像地址` 两个参数
+- 支持 `streamlit` 形式提供web界面
+- 支持 `cli.py` 命令行工具调用 
+
+## 使用方式
+
+### 配置文件
+在项目根目录下创建 `.env` 配置文件, 参考 `config.py` 中定义的配置项进行设置
+token为必须配置, 参考 
+[workflow rest api doc](https://docs.github.com/zh/rest/actions/workflows?apiVersion=2022-11-28)
+生成你的访问令牌, 建议 `细粒度的个人访问令牌`
+
+---
+
+
 视频教程：https://www.bilibili.com/video/BV1Zn4y19743/
 
 作者：**[技术爬爬虾](https://github.com/tech-shrimp/me)**<br>
