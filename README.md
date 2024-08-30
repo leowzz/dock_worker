@@ -20,6 +20,7 @@ token为必须配置, 参考
 [workflow rest api doc](https://docs.github.com/zh/rest/actions/workflows?apiVersion=2022-11-28)
 生成你的访问令牌, 建议 `细粒度的个人访问令牌`
 
+[workflow 触发及参数文档](https://docs.github.com/zh/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#workflow_dispatch)
 ---
 
 
