@@ -1,6 +1,6 @@
 # https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#workflow_dispatch
 name: ApiDocker
-run-name: Making ${{ inputs.image }} by @${{ github.actor }} to aliyun_repo
+run-name: Making ${{ inputs.origin_image }} by @${{ github.actor }} to aliyun_repo
 on:
   workflow_dispatch:
     inputs:
@@ -26,9 +26,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          echo "IMAGE: $IMAGE"
-          echo "IMAGE_NAME: $IMAGE_NAME"
-          echo "IMAGE_TAG: $IMAGE_TAG"
+          echo "ORIGIN_IMAGE: $ORIGIN_IMAGE"
+          echo "SELF_REPO_IMAGE: $SELF_REPO_IMAGE"
+          
 #  build:
 #    name: Pull images and push to Aliyun
 #    runs-on: ubuntu-latest
