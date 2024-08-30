@@ -74,17 +74,18 @@ class GitHubActionTrigger:
         return res
 
     def create_workflow_dispatch_event(
-        self,
-        owner,
-        repo,
-        workflow_id,
-        ref="main",
-        trigger_args: WorkflowTriggerArgs = None,
+            self,
+            owner,
+            repo,
+            workflow: Workflow | WorkflowDetails,
+            ref="main",
+            trigger_args: WorkflowTriggerArgs = None,
     ):
         if not trigger_args:
-            return None
+            logger.error("trigger_args is required")
+            return
         response = requests.post(
-            url=f"{self.github_api_endpoint}/repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",
+            url=f"{self.github_api_endpoint}/repos/{owner}/{repo}/actions/workflows/{workflow.id}/dispatches",
             headers=self.headers,
             proxies=self.proxy,
             json={
@@ -92,20 +93,19 @@ class GitHubActionTrigger:
                 "inputs": trigger_args.model_dump(),
             },
         )
-        return response.text
+        if response.status_code == 204:
+            logger.success(f"Workflow {workflow.name} triggered successfully")
 
 
 if __name__ == "__main__":
     action_trigger = GitHubActionTrigger()
     workflows = action_trigger.get_workflows("leowzz", "docker_image_pusher")
-    api_workflow_id = workflows.workflows[0].id
-    logger.debug(f"{workflows.workflows[0]=}")
-    logger.info(f"{api_workflow_id=}")
+    selected_workflow = workflows.workflows[0]
+    logger.info(f"{selected_workflow=}")
     trigger_args = action_trigger.WorkflowTriggerArgs(
         origin_image="python:3.10.14-slim-bullseye",
         self_repo_image="python_self:3.10.14-slim-bullseye",
     )
-    trigger_res = action_trigger.create_workflow_dispatch_event(
-        "leowzz", "docker_image_pusher", api_workflow_id, trigger_args=trigger_args
+    action_trigger.create_workflow_dispatch_event(
+        "leowzz", "docker_image_pusher", selected_workflow, trigger_args=trigger_args
     )
-    logger.info(f"{trigger_res=}")
