@@ -70,14 +70,33 @@ def get_workflow_info(owner, repo, workflow_id):
     return res
 
 
+def create_workflow_dispatch_event(owner, repo, workflow_id):
+    response = requests.post(
+        url=f"{github_api_endpoint}/repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {settings.token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+        proxies=proxy if settings.http_proxy else None,
+        json={
+            "ref": "api_hook",
+            "inputs": {
+                "image": "python:3.10.14-slim-bullseye",
+            },
+        },
+    )
+    return response
+
+
 # python:3.10.14-slim-bullseye
 
 if __name__ == "__main__":
     workflows = get_workflows("leowzz", "docker_image_pusher")
     logger.info(workflows)
-    workflow_id = workflows.workflows[0].id
-    workflow_info = get_workflow_info("leowzz", "docker_image_pusher", workflow_id)
-    logger.info(workflow_info)
+    api_workflow_id = workflows.workflows[0].id
+    api_workflow_info = get_workflow_info("leowzz", "docker_image_pusher", api_workflow_id)
+    logger.info(api_workflow_info)
 
 # response = requests.post(url, headers=headers, json=data)
 # response = requests.get(url, headers=headers)
