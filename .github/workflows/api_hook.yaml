@@ -28,7 +28,7 @@ jobs:
       - run: |
           echo "ORIGIN_IMAGE: $ORIGIN_IMAGE"
           echo "SELF_REPO_IMAGE: $SELF_REPO_IMAGE"
-          
+
 #  build:
 #    name: Pull images and push to Aliyun
 #    runs-on: ubuntu-latest
