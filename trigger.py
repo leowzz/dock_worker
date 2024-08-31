@@ -12,6 +12,8 @@ class GitHubActionTrigger:
         if settings.http_proxy
         else None
     )
+    owner = settings.owner
+    repo = settings.repo
 
     @property
     def headers(self):
@@ -53,9 +55,9 @@ class GitHubActionTrigger:
         origin_image: str
         self_repo_image: str  # 私有仓库镜像, aliyun.com/your_space/{self_repo_image}
 
-    def get_workflows(self, owner, repo):
+    def get_workflows(self):
         response = requests.get(
-            url=f"{self.github_api_endpoint}/repos/{owner}/{repo}/actions/workflows",
+            url=f"{self.github_api_endpoint}/repos/{self.owner}/{self.repo}/actions/workflows",
             headers=self.headers,
             proxies=self.proxy,
         )
@@ -64,9 +66,9 @@ class GitHubActionTrigger:
         res = self.WorkflowsResponse.model_validate(resp_json)
         return res
 
-    def get_workflow_info(self, owner, repo, workflow_id):
+    def get_workflow_info(self, workflow_id):
         response = requests.get(
-            url=f"{self.github_api_endpoint}/repos/{owner}/{repo}/actions/workflows/{workflow_id}",
+            url=f"{self.github_api_endpoint}/repos/{self.owner}/{self.repo}/actions/workflows/{workflow_id}",
             headers=self.headers,
             proxies=self.proxy,
         )
@@ -76,8 +78,6 @@ class GitHubActionTrigger:
 
     def create_workflow_dispatch_event(
             self,
-            owner,
-            repo,
             workflow: Workflow | WorkflowDetails,
             ref="main",
             trigger_args: WorkflowTriggerArgs = None,
@@ -86,7 +86,7 @@ class GitHubActionTrigger:
             logger.error("trigger_args is required")
             return
         response = requests.post(
-            url=f"{self.github_api_endpoint}/repos/{owner}/{repo}/actions/workflows/{workflow.id}/dispatches",
+            url=f"{self.github_api_endpoint}/repos/{self.owner}/{self.repo}/actions/workflows/{workflow.id}/dispatches",
             headers=self.headers,
             proxies=self.proxy,
             json={
@@ -101,13 +101,12 @@ class GitHubActionTrigger:
 
 if __name__ == "__main__":
     action_trigger = GitHubActionTrigger()
-    workflows = action_trigger.get_workflows("leowzz", "docker_image_pusher")
+    workflows = action_trigger.get_workflows()
     selected_workflow = workflows.workflows[0]
     logger.info(f"{selected_workflow=}")
-    trigger_args = action_trigger.WorkflowTriggerArgs(
-        origin_image="python:3.10.14-slim-bullseye",
-        self_repo_image="python_self:3.10.14-slim-bullseye",
-    )
     action_trigger.create_workflow_dispatch_event(
-        "leowzz", "docker_image_pusher", selected_workflow, trigger_args=trigger_args
+        selected_workflow, trigger_args=action_trigger.WorkflowTriggerArgs(
+            origin_image="ubuntu:20.04",
+            self_repo_image="ubuntu:20.04",
+        )
     )

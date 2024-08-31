@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     default_workflow_name: str = "ApiDockerImagePusher"
     http_proxy: str | None = None
     https_proxy: str | None = None
+    owner: str = "leowzz"  # github用户名
+    repo: str = "docker_image_pusher"  # github仓库名, fork此项目后的仓库名
 
     class Config:
         env_file = ".env"

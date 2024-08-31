@@ -16,7 +16,7 @@ action_trigger = GitHubActionTrigger()
 @st.cache_data
 def cached_get_workflows():
     logger.info("Getting workflows")
-    return action_trigger.get_workflows("leowzz", "docker_image_pusher")
+    return action_trigger.get_workflows()
 
 
 workflows = cached_get_workflows()
@@ -24,13 +24,15 @@ selected_workflow = next(
     (_ for _ in workflows.workflows if _.name == WORKFLOW_NAME), None
 )
 if not selected_workflow:
-    st.error(f"Workflow `{WORKFLOW_NAME}` not found, please check the workflow name and `restart` the app")
+    st.error(
+        f"Workflow `{WORKFLOW_NAME}` not found, please check the workflow name and `restart` the app"
+    )
     st.stop()
 st.write(f"Selected Workflow: `{selected_workflow.name}`")
 
 # Input fields for source and destination image
-origin_image = st.text_input("源镜像", "python:3.10.14-slim-bullseye")
-self_repo_image = st.text_input("私有仓库镜像", "python_self:3.10.14-slim-bullseye")
+origin_image = st.text_input("源镜像", "ubuntu:20.04")
+self_repo_image = st.text_input("私有仓库镜像", "ubuntu:20.04")
 
 # Button to trigger the workflow
 if st.button("开始复制"):
@@ -42,10 +44,10 @@ if st.button("开始复制"):
     )
     # Trigger the workflow
     trigger_ok = action_trigger.create_workflow_dispatch_event(
-        "leowzz", "docker_image_pusher", selected_workflow, trigger_args=trigger_args
+        selected_workflow, trigger_args=trigger_args
     )
     if trigger_ok:
         st.balloons()
-        st.toast(f"trigger success", icon='✨')
+        st.toast(f"trigger success", icon="✨")
     else:
-        st.toast("trigger failed", icon='😱')
+        st.toast("trigger failed", icon="😱")

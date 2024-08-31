@@ -10,10 +10,16 @@ from rich.table import Table
 def main():
     # Initialize argument parser
     parser = argparse.ArgumentParser(description="Trigger GitHub Action Workflow")
-    parser.add_argument("origin_image", type=str, nargs='?', help="Source Image URL")
-    parser.add_argument("self_repo_image", type=str, nargs='?', help="Destination Image URL")
-    parser.add_argument("--workflow", type=str, help="workflow name to trigger", default=None)
-    parser.add_argument("--list_workflows", "-l", action="store_true", help="List all workflows")
+    parser.add_argument("origin_image", type=str, nargs="?", help="Source Image URL")
+    parser.add_argument(
+        "self_repo_image", type=str, nargs="?", help="Destination Image URL"
+    )
+    parser.add_argument(
+        "--workflow", type=str, help="workflow name to trigger", default=None
+    )
+    parser.add_argument(
+        "--list_workflows", "-l", action="store_true", help="List all workflows"
+    )
 
     # Parse arguments
     args = parser.parse_args()
@@ -27,7 +33,7 @@ def main():
     action_trigger = GitHubActionTrigger()
 
     # Get workflows
-    workflows = action_trigger.get_workflows("leowzz", "docker_image_pusher")
+    workflows = action_trigger.get_workflows()
     if not workflows:
         logger.info("workflows not exist")
         return
@@ -43,7 +49,8 @@ def main():
         return
 
     selected_workflow = args.workflow or next(
-        (_ for _ in workflows.workflows if _.name == settings.default_workflow_name), None
+        (_ for _ in workflows.workflows if _.name == settings.default_workflow_name),
+        None,
     )
     logger.info(f"Selected Workflow: {selected_workflow.name}")
 
@@ -55,7 +62,7 @@ def main():
 
     # Trigger the workflow
     success = action_trigger.create_workflow_dispatch_event(
-        "leowzz", "docker_image_pusher", selected_workflow, trigger_args=trigger_args
+        selected_workflow, trigger_args=trigger_args
     )
     if success:
         logger.success(f"Workflow {selected_workflow.name} triggered successfully")
