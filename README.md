@@ -6,7 +6,8 @@
 - 使用阿里云的官方线路，速度快<br>
 
 ---
-leo03w 20240830
+## leo03w 20240830
+
 
 新增 `api_hook.yaml` 带参workflow, 支持api方式启动github action, 可传 `原始镜像地址` 和 `目的镜像地址` 两个参数
 - 支持 `streamlit` 形式提供web界面
@@ -24,6 +25,12 @@ token为必须配置, 参考
 配置 owner为你的github用户名, repo为你克隆此项目后的项目命名
 
 [workflow 触发及参数文档](https://docs.github.com/zh/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#workflow_dispatch)
+
+### todo
+
+- [ ] `cli.py` 支持单位置参数
+- [ ] 外部调用 `cli.py` 配置文件读取不到问题
+- [ ] 封装可执行文件
 
 ---
 
