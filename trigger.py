@@ -146,6 +146,7 @@ class GitHubActionTrigger:
         Forks a Docker image from the origin to the self repository.
         :return: True if the workflow was triggered successfully, False otherwise.
         """
+        logger.debug(f"{trigger_args=}")
         workflows = self.get_workflows()
         workflow_name = settings.default_workflow_name
         selected_workflow = next(
@@ -204,20 +205,21 @@ class GitHubActionTrigger:
 
 if __name__ == "__main__":
     action_trigger = GitHubActionTrigger()
-    workflows = action_trigger.get_workflows()
-    selected_workflow = workflows.workflows[0]
-    logger.info(f"{selected_workflow=}")
-    info = action_trigger.get_workflow_runs(selected_workflow.id)
-    logger.info(f"{info=}")
-    # # todo: 记录最后的 run_number
+
+    action_trigger.fork_image(GitHubActionTrigger.WorkflowTriggerArgs(
+        origin_image="ubuntu:20.04", self_repo_image=None
+    ))
+
+    # workflows = action_trigger.get_workflows()
+    # selected_workflow = workflows.workflows[0]
+    # logger.info(f"{selected_workflow=}")
+    # info = action_trigger.get_workflow_runs(selected_workflow.id)
+    # logger.info(f"{info=}")
     # action_trigger.create_workflow_dispatch_event(
     #     selected_workflow, trigger_args=action_trigger.WorkflowTriggerArgs(
     #         origin_image="ubuntu:20.04",
     #         self_repo_image="ubuntu:20.04",
     #     )
     # )
-    # todo: get workflow runs, 如果[0]run_number == 刚记录的 delay 1s, resent req
-    # todo: rich 加载条, 每隔2s发一次请求, 查看状态是否是 completed
-
     # info = action_trigger.get_workflow_run_info()
     # logger.info(f"{info=}")
