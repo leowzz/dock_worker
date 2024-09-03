@@ -59,15 +59,8 @@ def main():
         origin_image=args.origin_image,
         self_repo_image=args.self_repo_image,
     )
-
-    # Trigger the workflow
-    success = action_trigger.create_workflow_dispatch_event(
-        selected_workflow, trigger_args=trigger_args
-    )
-    if success:
-        logger.success(f"Workflow {selected_workflow.name} triggered successfully")
-    else:
-        logger.error("Failed to trigger the workflow")
+    logger.info(f"{trigger_args=}")
+    action_trigger.fork_image(trigger_args=trigger_args)
 
 
 def show_workflows(workflows):
