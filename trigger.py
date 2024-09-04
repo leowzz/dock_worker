@@ -143,7 +143,10 @@ class GitHubActionTrigger:
             return True
         return False
 
-    def fork_image(self, trigger_args: WorkflowTriggerArgs):
+    def make_pull_info(self, trigger_args: WorkflowTriggerArgs) -> str:
+        return f"`docker pull {settings.image_repositories_endpoint}/{settings.name_space}/{trigger_args.target}`"
+
+    def fork_image(self, trigger_args: WorkflowTriggerArgs, test_mode=False):
         """
         Forks a Docker image from the origin to the self repository.
         :return: True if the workflow was triggered successfully, False otherwise.
@@ -165,11 +168,12 @@ class GitHubActionTrigger:
             last_run_number = workflow_runs['workflow_runs'][0]['run_number']
             logger.info(f"Last run number: {last_run_number}")
 
-        if not self.create_workflow_dispatch_event(
-                workflow=selected_workflow,
-                trigger_args=trigger_args
-        ):
-            return False
+        if not test_mode:
+            if not self.create_workflow_dispatch_event(
+                    workflow=selected_workflow,
+                    trigger_args=trigger_args
+            ):
+                return False
 
         # 每隔2s发一次请求, 查看状态是否是 completed
         import time
@@ -184,6 +188,10 @@ class GitHubActionTrigger:
                     workflow_runs = self.get_workflow_runs(selected_workflow.id)
                     if workflow_runs and workflow_runs['workflow_runs']:
                         for run_info in workflow_runs['workflow_runs']:
+                            if test_mode:
+                                running_job_id = run_info['id']
+                                logger.info(f"Current run number: {run_info['run_number']}, {running_job_id=}")
+                                break
                             if run_info['run_number'] > last_run_number:
                                 running_job_id = run_info['id']
                                 logger.info(f"Current run number: {run_info['run_number']}, {running_job_id=}")
@@ -194,7 +202,9 @@ class GitHubActionTrigger:
                         if current_run['conclusion'] == 'success':
                             progress.update(task, description="[green]Workflow completed successfully", total=100,
                                             completed=100)
-                            logger.success("Workflow completed successfully")
+                            logger.success(
+                                f"Workflow completed successfully!\n"
+                                f"You can pull it with: {self.make_pull_info(trigger_args)}")
                             return True
                         else:
                             progress.update(task, description="[red]Workflow did not complete successfully",

@@ -20,6 +20,9 @@ def main():
     parser.add_argument(
         "--list_workflows", "-l", action="store_true", help="List all workflows"
     )
+    parser.add_argument(
+        "-test_mode", "-t", action="store_true", help="是否以测试模式运行"
+    )
 
     # Parse arguments
     args = parser.parse_args()
@@ -59,8 +62,8 @@ def main():
         source=args.source,
         target=args.target,
     )
-    logger.info(f"{trigger_args=}")
-    action_trigger.fork_image(trigger_args=trigger_args)
+    logger.info(f"{trigger_args=}, {args=}")
+    action_trigger.fork_image(trigger_args=trigger_args, test_mode=args.test_mode)
 
 
 def show_workflows(workflows):
