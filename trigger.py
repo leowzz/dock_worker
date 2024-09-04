@@ -3,6 +3,7 @@ from config import settings
 from loguru import logger
 from pydantic import BaseModel, field_validator
 from datetime import datetime
+from utils import normalize_image_name
 
 
 class GitHubActionTrigger:
@@ -52,15 +53,16 @@ class GitHubActionTrigger:
         badge_url: str
 
     class WorkflowTriggerArgs(BaseModel):
-        origin_image: str
-        self_repo_image: str = None  # 私有仓库镜像, aliyun.com/your_space/{self_repo_image}
+        source: str
+        target: str = None  # 私有仓库镜像, aliyun.com/your_space/{target}
 
-        @field_validator('self_repo_image', mode='before')
+        @field_validator('target', mode='before')
         @classmethod
         def set_default_self_repo_image(cls, v, values):
             logger.debug(f"{v=}, {values=}")
             if v is None:
-                return values.data.get('origin_image')
+                v = values.data.get('source')
+            v = normalize_image_name(v)
             return v
 
     def get_workflows(self):
@@ -210,7 +212,7 @@ if __name__ == "__main__":
     action_trigger = GitHubActionTrigger()
 
     action_trigger.fork_image(GitHubActionTrigger.WorkflowTriggerArgs(
-        origin_image="ubuntu:20.04", self_repo_image=None
+        source="ubuntu:20.04", target=None
     ))
 
     # workflows = action_trigger.get_workflows()
@@ -220,8 +222,8 @@ if __name__ == "__main__":
     # logger.info(f"{info=}")
     # action_trigger.create_workflow_dispatch_event(
     #     selected_workflow, trigger_args=action_trigger.WorkflowTriggerArgs(
-    #         origin_image="ubuntu:20.04",
-    #         self_repo_image="ubuntu:20.04",
+    #         source="ubuntu:20.04",
+    #         target="ubuntu:20.04",
     #     )
     # )
     # info = action_trigger.get_workflow_run_info()

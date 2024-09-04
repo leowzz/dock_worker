@@ -31,16 +31,16 @@ if not selected_workflow:
 st.write(f"Selected Workflow: `{selected_workflow.name}`")
 
 # Input fields for source and destination image
-origin_image = st.text_input("源镜像", "ubuntu:20.04")
-self_repo_image = st.text_input("私有仓库镜像", "ubuntu:20.04")
+source = st.text_input("源镜像", "ubuntu:20.04")
+target = st.text_input("私有仓库镜像", "ubuntu:20.04")
 
 # Button to trigger the workflow
 if st.button("开始复制"):
 
     # Get workflows from cache
     trigger_args = action_trigger.WorkflowTriggerArgs(
-        origin_image=origin_image,
-        self_repo_image=self_repo_image,
+        source=source,
+        target=target,
     )
     # Trigger the workflow
     trigger_ok = action_trigger.create_workflow_dispatch_event(

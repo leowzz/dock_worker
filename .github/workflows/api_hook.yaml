@@ -1,15 +1,15 @@
 # https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#workflow_dispatch
 name: ApiDockerImagePusher
-run-name: Making ${{ inputs.origin_image }} by @${{ github.actor }} to ${{ inputs.self_repo_image }}
+run-name: Making ${{ inputs.source }} by @${{ github.actor }} to ${{ inputs.target }}
 on:
   workflow_dispatch:
     inputs:
-      origin_image:
+      source:
         description: '原始镜像全名, 例如`ubuntu:22.10`'
         required: true
         type: string
-      self_repo_image:
-        description: '放置在私有仓库的镜像名称 repo/name_space/{self_repo_image}'
+      target:
+        description: '放置在私有仓库的镜像名称 repo/name_space/{target}'
         required: true
         type: string
 
@@ -18,16 +18,16 @@ env:
   ALIYUN_NAME_SPACE: "${{ secrets.ALIYUN_NAME_SPACE }}"
   ALIYUN_REGISTRY_USER: "${{ secrets.ALIYUN_REGISTRY_USER }}"
   ALIYUN_REGISTRY_PASSWORD: "${{ secrets.ALIYUN_REGISTRY_PASSWORD }}"
-  ORIGIN_IMAGE: ${{ github.event.inputs.origin_image }}
-  SELF_REPO_IMAGE: ${{ github.event.inputs.self_repo_image }}
+  SOURCE: ${{ github.event.inputs.source }}
+  TARGET: ${{ github.event.inputs.target }}
 
 jobs:
   log-the-inputs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          echo "ORIGIN_IMAGE: $ORIGIN_IMAGE"
-          echo "SELF_REPO_IMAGE: $SELF_REPO_IMAGE"
+          echo "SOURCE: $SOURCE"
+          echo "TARGET: $TARGET"
 
   pull_tag_push:
     name: Pull images and push to Aliyun
@@ -74,17 +74,17 @@ jobs:
           docker login -u $ALIYUN_REGISTRY_USER -p $ALIYUN_REGISTRY_PASSWORD $ALIYUN_REGISTRY
           echo "=============================================================================="
           echo "开始拉取镜像"
-          echo "docker pull $ORIGIN_IMAGE"
-          docker pull $ORIGIN_IMAGE
+          echo "docker pull $SOURCE"
+          docker pull $SOURCE
           echo "=============================================================================="
           echo "拉取完成"
           echo "docker images"
           docker images
           echo "=============================================================================="
-          new_image="$ALIYUN_REGISTRY/$ALIYUN_NAME_SPACE/$SELF_REPO_IMAGE"
+          new_image="$ALIYUN_REGISTRY/$ALIYUN_NAME_SPACE/$TARGET"
           echo "打标签, 新镜像名称为: $new_image"
-          echo "docker tag $ORIGIN_IMAGE $new_image"
-          docker tag $ORIGIN_IMAGE $new_image
+          echo "docker tag $SOURCE $new_image"
+          docker tag $SOURCE $new_image
           echo "=============================================================================="
           echo "打标签完成"
           echo "docker images"

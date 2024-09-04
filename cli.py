@@ -10,9 +10,9 @@ from rich.table import Table
 def main():
     # Initialize argument parser
     parser = argparse.ArgumentParser(description="Trigger GitHub Action Workflow")
-    parser.add_argument("origin_image", type=str, nargs="?", help="Source Image URL")
+    parser.add_argument("source", type=str, nargs="?", help="Source Image URL")
     parser.add_argument(
-        "self_repo_image", type=str, nargs="?", help="Destination Image URL"
+        "target", type=str, nargs="?", help="Destination Image URL"
     )
     parser.add_argument(
         "--workflow", type=str, help="workflow name to trigger", default=None
@@ -56,8 +56,8 @@ def main():
 
     # Create trigger args
     trigger_args = action_trigger.WorkflowTriggerArgs(
-        origin_image=args.origin_image,
-        self_repo_image=args.self_repo_image,
+        source=args.source,
+        target=args.target,
     )
     logger.info(f"{trigger_args=}")
     action_trigger.fork_image(trigger_args=trigger_args)
