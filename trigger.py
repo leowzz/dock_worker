@@ -12,8 +12,8 @@ class GitHubActionTrigger:
         if settings.http_proxy
         else None
     )
-    owner = settings.owner
-    repo = settings.repo
+    github_username = settings.github_username
+    github_repo = settings.github_repo
 
     @property
     def headers(self):
@@ -65,7 +65,7 @@ class GitHubActionTrigger:
 
     def get_workflows(self):
         response = requests.get(
-            url=f"{self.github_api_endpoint}/repos/{self.owner}/{self.repo}/actions/workflows",
+            url=f"{self.github_api_endpoint}/repos/{self.github_username}/{self.github_repo}/actions/workflows",
             headers=self.headers,
             proxies=self.proxy,
         )
@@ -76,7 +76,8 @@ class GitHubActionTrigger:
 
     def get_workflow_info(self, workflow_id):
         response = requests.get(
-            url=f"{self.github_api_endpoint}/repos/{self.owner}/{self.repo}/actions/workflows/{workflow_id}",
+            url=f"{self.github_api_endpoint}/repos/{self.github_username}/{self.github_repo}/"
+                f"actions/workflows/{workflow_id}",
             headers=self.headers,
             proxies=self.proxy,
         )
@@ -95,7 +96,8 @@ class GitHubActionTrigger:
             query_params.update({"status": status})
 
         response = requests.get(
-            url=f"{self.github_api_endpoint}/repos/{self.owner}/{self.repo}/actions/workflows/{workflow_id}/runs",
+            url=f"{self.github_api_endpoint}/repos/{self.github_username}/{self.github_repo}/"
+                f"actions/workflows/{workflow_id}/runs",
             headers=self.headers,
             proxies=self.proxy,
             params=query_params
@@ -110,7 +112,7 @@ class GitHubActionTrigger:
         :return:
         """
         response = requests.get(
-            url=f"{self.github_api_endpoint}/repos/{self.owner}/{self.repo}/actions/runs/{run_id}",
+            url=f"{self.github_api_endpoint}/repos/{self.github_username}/{self.github_repo}/actions/runs/{run_id}",
             headers=self.headers,
             proxies=self.proxy,
         )
@@ -127,7 +129,8 @@ class GitHubActionTrigger:
             logger.error("trigger_args is required")
             return
         response = requests.post(
-            url=f"{self.github_api_endpoint}/repos/{self.owner}/{self.repo}/actions/workflows/{workflow.id}/dispatches",
+            url=f"{self.github_api_endpoint}/repos/{self.github_username}/{self.github_repo}/"
+                f"actions/workflows/{workflow.id}/dispatches",
             headers=self.headers,
             proxies=self.proxy,
             json={
