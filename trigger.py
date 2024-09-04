@@ -54,16 +54,13 @@ class GitHubActionTrigger:
 
     class WorkflowTriggerArgs(BaseModel):
         source: str
-        target: str = None  # 私有仓库镜像, aliyun.com/your_space/{target}
+        target: str | None = None  # 私有仓库镜像, aliyun.com/your_space/{target}
 
-        @field_validator('target', mode='before')
-        @classmethod
-        def set_default_self_repo_image(cls, v, values):
-            logger.debug(f"{v=}, {values=}")
-            if v is None:
-                v = values.data.get('source')
-            v = normalize_image_name(v)
-            return v
+        def __init__(self, **data):
+            super().__init__(**data)
+            if self.target is None:
+                self.target = self.source
+            self.target = normalize_image_name(self.target, remove_namespace=True)
 
     def get_workflows(self):
         response = requests.get(
