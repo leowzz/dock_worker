@@ -235,7 +235,7 @@ class GitHubActionManager:
                                             completed=100)
                             logger.success(
                                 f"Workflow completed successfully!\n"
-                                f"You can pull it with: {self.make_pull_cmd(image_args.target)}")
+                                f"You can pull it with: docker pull {self.make_image_full_name(image_args.target)}")
                             return True
                         else:
                             progress.update(task, description="[red]Workflow did not complete successfully",
