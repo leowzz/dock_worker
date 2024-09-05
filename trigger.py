@@ -19,8 +19,8 @@ class ImageArgs(BaseModel):
         self.target = normalize_image_name(self.target, remove_namespace=True)
 
 
-class GitHubActionTrigger:
-    github_api_endpoint = "https://api.github.com"
+class GitHubActionManager:
+    api_endpoint = "https://api.github.com"
     proxy = (
         {"http": settings.http_proxy, "https": settings.http_proxy}
         if settings.http_proxy
@@ -53,7 +53,7 @@ class GitHubActionTrigger:
 
     class WorkflowsResponse(BaseModel):
         total_count: int
-        workflows: list["GitHubActionTrigger.Workflow"]
+        workflows: list["GitHubActionManager.Workflow"]
 
     class WorkflowDetails(BaseModel):
         id: int
@@ -69,7 +69,7 @@ class GitHubActionTrigger:
 
     def get_workflows(self):
         response = requests.get(
-            url=f"{self.github_api_endpoint}/repos/{self.github_username}/{self.github_repo}/actions/workflows",
+            url=f"{self.api_endpoint}/repos/{self.github_username}/{self.github_repo}/actions/workflows",
             headers=self.headers,
             proxies=self.proxy,
         )
@@ -80,7 +80,7 @@ class GitHubActionTrigger:
 
     def get_workflow_info(self, workflow_id):
         response = requests.get(
-            url=f"{self.github_api_endpoint}/repos/{self.github_username}/{self.github_repo}/"
+            url=f"{self.api_endpoint}/repos/{self.github_username}/{self.github_repo}/"
                 f"actions/workflows/{workflow_id}",
             headers=self.headers,
             proxies=self.proxy,
@@ -100,7 +100,7 @@ class GitHubActionTrigger:
             query_params.update({"status": status})
 
         response = requests.get(
-            url=f"{self.github_api_endpoint}/repos/{self.github_username}/{self.github_repo}/"
+            url=f"{self.api_endpoint}/repos/{self.github_username}/{self.github_repo}/"
                 f"actions/workflows/{workflow_id}/runs",
             headers=self.headers,
             proxies=self.proxy,
@@ -116,7 +116,7 @@ class GitHubActionTrigger:
         :return:
         """
         response = requests.get(
-            url=f"{self.github_api_endpoint}/repos/{self.github_username}/{self.github_repo}/actions/runs/{run_id}",
+            url=f"{self.api_endpoint}/repos/{self.github_username}/{self.github_repo}/actions/runs/{run_id}",
             headers=self.headers,
             proxies=self.proxy,
         )
@@ -133,7 +133,7 @@ class GitHubActionTrigger:
             logger.error("image_args is required")
             return
         response = requests.post(
-            url=f"{self.github_api_endpoint}/repos/{self.github_username}/{self.github_repo}/"
+            url=f"{self.api_endpoint}/repos/{self.github_username}/{self.github_repo}/"
                 f"actions/workflows/{workflow.id}/dispatches",
             headers=self.headers,
             proxies=self.proxy,
@@ -151,33 +151,31 @@ class GitHubActionTrigger:
     def make_image_full_name(self, image_name: str) -> str:
         return f"{self.image_repositories_endpoint}/{self.name_space}/{image_name}"
 
-    def make_pull_cmd(self, image_name: str) -> str:
-        return f"docker pull {self.make_image_full_name(image_name)}"
-
-    def pull(self, image_name):
+    def execute_command(self, command: str) -> bool:
         try:
-            pull_cmd = self.make_pull_cmd(image_name)
-            logger.info(f"{pull_cmd=}")
-            os.system(pull_cmd)
+            logger.info(f"Executing command: {command}")
+            os.system(command)
+            return True
         except Exception as e:
-            logger.error(f"{e=}")
+            logger.error(f"Command execution failed: {e}")
+            return False
+
+    def pull_image(self, image_name: str) -> bool:
+        pull_cmd = f"docker pull {self.make_image_full_name(image_name)}"
+        return self.execute_command(pull_cmd)
+
+    def tag_image(self, source_image: str, target_image: str) -> bool:
+        tag_cmd = f"docker tag {self.make_image_full_name(source_image)} {target_image}"
+        return self.execute_command(tag_cmd)
+
+    def fork_and_pull(self, image_args: ImageArgs, test_mode=False) -> bool:
+        if not self.fork_image(image_args=image_args, test_mode=test_mode):
+            return False
+        if not self.pull_image(image_args.target):
+            return False
+        if not self.tag_image(image_args.source, image_args.target):
             return False
         return True
-
-    def tag(self, image_args: ImageArgs):
-        try:
-            tag_cmd = f"docker tag {self.make_image_full_name(image_args.source)} {image_args.target}"
-            os.system(tag_cmd)
-            logger.success(tag_cmd)
-        except Exception as e:
-            logger.error(f"{e=}")
-            return False
-        return True
-
-    def fork_and_pull(self, image_args: ImageArgs, test_mode=False):
-        self.fork_image(image_args=image_args, test_mode=test_mode)
-        self.pull(image_args.target)
-        self.tag(image_args)
 
     def fork_image(self, image_args: ImageArgs, test_mode=False):
         """
@@ -249,9 +247,9 @@ class GitHubActionTrigger:
 
 
 if __name__ == "__main__":
-    action_trigger = GitHubActionTrigger()
+    action_trigger = GitHubActionManager()
 
-    action_trigger.fork_image(GitHubActionTrigger.ImageArgs(
+    action_trigger.fork_image(ImageArgs(
         source="ubuntu:20.04", target=None
     ))
 

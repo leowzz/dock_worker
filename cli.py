@@ -1,7 +1,7 @@
 import argparse
 
 from config import settings
-from trigger import GitHubActionTrigger, ImageArgs
+from trigger import GitHubActionManager, ImageArgs
 from loguru import logger
 from rich.console import Console
 from rich.table import Table
@@ -40,7 +40,7 @@ def main():
         return
 
     # Initialize GitHubActionTrigger
-    action_trigger = GitHubActionTrigger()
+    action_trigger = GitHubActionManager()
 
     # Get workflows
     workflows = action_trigger.get_workflows()
@@ -71,9 +71,11 @@ def main():
     )
     logger.info(f"{image_args=}, {args=}")
     if args.command == "fork":
-        action_trigger.fork_image(image_args=image_args, test_mode=args.test_mode)
+        if not action_trigger.fork_image(image_args=image_args, test_mode=args.test_mode):
+            logger.error("Fork image failed")
     elif args.command == "pull":
-        action_trigger.fork_and_pull(image_args=image_args, test_mode=args.test_mode)
+        if not action_trigger.fork_and_pull(image_args=image_args, test_mode=args.test_mode):
+            logger.error("Fork and pull image failed")
 
 
 def show_workflows(workflows):

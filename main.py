@@ -1,5 +1,5 @@
 import streamlit as st
-from trigger import GitHubActionTrigger, ImageArgs
+from trigger import GitHubActionManager, ImageArgs
 from loguru import logger
 from config import settings
 
@@ -9,7 +9,7 @@ WORKFLOW_NAME = settings.default_workflow_name
 # Streamlit page title
 st.title("GitHub Action Workflow Trigger")
 
-action_trigger = GitHubActionTrigger()
+action_trigger = GitHubActionManager()
 
 
 # Cache the get_workflows function
