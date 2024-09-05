@@ -1,7 +1,7 @@
 import argparse
 
 from config import settings
-from trigger import GitHubActionTrigger
+from trigger import GitHubActionTrigger, ImageArgs
 from loguru import logger
 from rich.console import Console
 from rich.table import Table
@@ -15,9 +15,9 @@ def main():
         "target", type=str, nargs="?", help="Destination Image URL", default=None
     )
     parser.add_argument(
-        "--command","-c", "--cmd",
+        "--command", "-c", "--cmd",
         type=str,
-        choices=["fork", "clone"],
+        choices=["fork", "pull"],
         help="Command to execute",
         default="fork",
     )
@@ -65,13 +65,15 @@ def main():
     logger.info(f"Selected Workflow: {selected_workflow.name}")
 
     # Create trigger args
-    trigger_args = action_trigger.WorkflowTriggerArgs(
+    image_args = ImageArgs(
         source=args.source,
         target=args.target,
     )
-    logger.info(f"{trigger_args=}, {args=}")
+    logger.info(f"{image_args=}, {args=}")
     if args.command == "fork":
-        action_trigger.fork_image(trigger_args=trigger_args, test_mode=args.test_mode)
+        action_trigger.fork_image(image_args=image_args, test_mode=args.test_mode)
+    elif args.command == "pull":
+        action_trigger.fork_and_pull(image_args=image_args, test_mode=args.test_mode)
 
 
 def show_workflows(workflows):

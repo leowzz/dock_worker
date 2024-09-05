@@ -1,5 +1,5 @@
 import streamlit as st
-from trigger import GitHubActionTrigger
+from trigger import GitHubActionTrigger, ImageArgs
 from loguru import logger
 from config import settings
 
@@ -38,13 +38,13 @@ target = st.text_input("私有仓库镜像", "ubuntu:20.04")
 if st.button("开始复制"):
 
     # Get workflows from cache
-    trigger_args = action_trigger.WorkflowTriggerArgs(
+    image_args = ImageArgs(
         source=source,
         target=target,
     )
     # Trigger the workflow
     trigger_ok = action_trigger.create_workflow_dispatch_event(
-        selected_workflow, trigger_args=trigger_args
+        selected_workflow, image_args=image_args
     )
     if trigger_ok:
         st.balloons()

@@ -1,9 +1,22 @@
+import os
+
 import requests
 from config import settings
 from loguru import logger
 from pydantic import BaseModel, field_validator
 from datetime import datetime
 from utils import normalize_image_name
+
+
+class ImageArgs(BaseModel):
+    source: str
+    target: str | None = None  # 私有仓库镜像, aliyun.com/your_space/{target}
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        if self.target is None:
+            self.target = self.source
+        self.target = normalize_image_name(self.target, remove_namespace=True)
 
 
 class GitHubActionTrigger:
@@ -15,6 +28,8 @@ class GitHubActionTrigger:
     )
     github_username = settings.github_username
     github_repo = settings.github_repo
+    name_space = settings.name_space
+    image_repositories_endpoint = settings.image_repositories_endpoint
 
     @property
     def headers(self):
@@ -51,16 +66,6 @@ class GitHubActionTrigger:
         url: str
         html_url: str
         badge_url: str
-
-    class WorkflowTriggerArgs(BaseModel):
-        source: str
-        target: str | None = None  # 私有仓库镜像, aliyun.com/your_space/{target}
-
-        def __init__(self, **data):
-            super().__init__(**data)
-            if self.target is None:
-                self.target = self.source
-            self.target = normalize_image_name(self.target, remove_namespace=True)
 
     def get_workflows(self):
         response = requests.get(
@@ -122,10 +127,10 @@ class GitHubActionTrigger:
             self,
             workflow: Workflow | WorkflowDetails,
             ref="main",
-            trigger_args: WorkflowTriggerArgs = None,
+            image_args: ImageArgs = None,
     ):
-        if not trigger_args:
-            logger.error("trigger_args is required")
+        if not image_args:
+            logger.error("image_args is required")
             return
         response = requests.post(
             url=f"{self.github_api_endpoint}/repos/{self.github_username}/{self.github_repo}/"
@@ -134,7 +139,7 @@ class GitHubActionTrigger:
             proxies=self.proxy,
             json={
                 "ref": ref,
-                "inputs": trigger_args.model_dump(),
+                "inputs": image_args.model_dump(),
             },
         )
         logger.debug(f"{response.text=}")
@@ -143,15 +148,43 @@ class GitHubActionTrigger:
             return True
         return False
 
-    def make_pull_info(self, trigger_args: WorkflowTriggerArgs) -> str:
-        return f"`docker pull {settings.image_repositories_endpoint}/{settings.name_space}/{trigger_args.target}`"
+    def make_image_full_name(self, image_name: str) -> str:
+        return f"{self.image_repositories_endpoint}/{self.name_space}/{image_name}"
 
-    def fork_image(self, trigger_args: WorkflowTriggerArgs, test_mode=False):
+    def make_pull_cmd(self, image_name: str) -> str:
+        return f"docker pull {self.make_image_full_name(image_name)}"
+
+    def pull(self, image_name):
+        try:
+            pull_cmd = self.make_pull_cmd(image_name)
+            logger.info(f"{pull_cmd=}")
+            os.system(pull_cmd)
+        except Exception as e:
+            logger.error(f"{e=}")
+            return False
+        return True
+
+    def tag(self, image_args: ImageArgs):
+        try:
+            tag_cmd = f"docker tag {self.make_image_full_name(image_args.source)} {image_args.target}"
+            os.system(tag_cmd)
+            logger.success(tag_cmd)
+        except Exception as e:
+            logger.error(f"{e=}")
+            return False
+        return True
+
+    def fork_and_pull(self, image_args: ImageArgs, test_mode=False):
+        self.fork_image(image_args=image_args, test_mode=test_mode)
+        self.pull(image_args.target)
+        self.tag(image_args)
+
+    def fork_image(self, image_args: ImageArgs, test_mode=False):
         """
         Forks a Docker image from the origin to the self repository.
         :return: True if the workflow was triggered successfully, False otherwise.
         """
-        logger.debug(f"{trigger_args=}")
+        logger.debug(f"{image_args=}")
         workflows = self.get_workflows()
         workflow_name = settings.default_workflow_name
         selected_workflow = next(
@@ -171,7 +204,7 @@ class GitHubActionTrigger:
         if not test_mode:
             if not self.create_workflow_dispatch_event(
                     workflow=selected_workflow,
-                    trigger_args=trigger_args
+                    image_args=image_args
             ):
                 return False
 
@@ -204,7 +237,7 @@ class GitHubActionTrigger:
                                             completed=100)
                             logger.success(
                                 f"Workflow completed successfully!\n"
-                                f"You can pull it with: {self.make_pull_info(trigger_args)}")
+                                f"You can pull it with: {self.make_pull_cmd(image_args.target)}")
                             return True
                         else:
                             progress.update(task, description="[red]Workflow did not complete successfully",
@@ -218,7 +251,7 @@ class GitHubActionTrigger:
 if __name__ == "__main__":
     action_trigger = GitHubActionTrigger()
 
-    action_trigger.fork_image(GitHubActionTrigger.WorkflowTriggerArgs(
+    action_trigger.fork_image(GitHubActionTrigger.ImageArgs(
         source="ubuntu:20.04", target=None
     ))
 
@@ -228,7 +261,7 @@ if __name__ == "__main__":
     # info = action_trigger.get_workflow_runs(selected_workflow.id)
     # logger.info(f"{info=}")
     # action_trigger.create_workflow_dispatch_event(
-    #     selected_workflow, trigger_args=action_trigger.WorkflowTriggerArgs(
+    #     selected_workflow, image_args=action_trigger.ImageArgs(
     #         source="ubuntu:20.04",
     #         target="ubuntu:20.04",
     #     )
