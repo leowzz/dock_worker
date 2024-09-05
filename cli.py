@@ -12,7 +12,14 @@ def main():
     parser = argparse.ArgumentParser(description="Trigger GitHub Action Workflow")
     parser.add_argument("source", type=str, nargs="?", help="Source Image URL")
     parser.add_argument(
-        "target", type=str, nargs="?", help="Destination Image URL"
+        "target", type=str, nargs="?", help="Destination Image URL", default=None
+    )
+    parser.add_argument(
+        "--command","-c", "--cmd",
+        type=str,
+        choices=["fork", "clone"],
+        help="Command to execute",
+        default="fork",
     )
     parser.add_argument(
         "--workflow", type=str, help="workflow name to trigger", default=None
@@ -63,7 +70,8 @@ def main():
         target=args.target,
     )
     logger.info(f"{trigger_args=}, {args=}")
-    action_trigger.fork_image(trigger_args=trigger_args, test_mode=args.test_mode)
+    if args.command == "fork":
+        action_trigger.fork_image(trigger_args=trigger_args, test_mode=args.test_mode)
 
 
 def show_workflows(workflows):
