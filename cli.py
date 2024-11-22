@@ -1,3 +1,4 @@
+#! /root/miniconda3/envs/demos/bin/python
 import argparse
 
 from config import settings
