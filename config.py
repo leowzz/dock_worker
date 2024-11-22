@@ -1,5 +1,8 @@
+import os
 from pydantic_settings import BaseSettings
 
+BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
+print(f"{BASE_DIR=}")
 
 class Settings(BaseSettings):
     token: str  # 你的访问令牌 https://docs.github.com/zh/rest/actions/workflows?apiVersion=2022-11-28
@@ -10,9 +13,9 @@ class Settings(BaseSettings):
     https_proxy: str | None = None
     github_username: str = "leowzz"  # github用户名
     github_repo: str = "docker_image_pusher"  # github仓库名, fork此项目后的仓库名
-
+    
     class Config:
-        env_file = ".env"
+        env_file = os.path.join(BASE_DIR, ".env")
 
 
 settings = Settings()
