@@ -1,6 +1,7 @@
 # https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#workflow_dispatch
 name: ApiDockerImagePusher
-run-name: Making ${{ inputs.source }} by @${{ github.actor }} to ${{ inputs.target }}
+run-name: Making ${{ inputs.source }} to ${{ inputs.target }}, by @${{ github.actor }}. [${{ inputs.distinct_id || 'N/A' }}]
+
 on:
   workflow_dispatch:
     inputs:
@@ -12,6 +13,9 @@ on:
         description: '放置在私有仓库的镜像名称 repo/name_space/{target}'
         required: true
         type: string
+      distinct_id:
+        description: 'Distinct ID'
+        required: false
 
 env:
   ALIYUN_REGISTRY: "${{ secrets.ALIYUN_REGISTRY }}"
