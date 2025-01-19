@@ -126,3 +126,12 @@ xiaoyaliu/alist
 修改/.github/workflows/docker.yaml文件
 添加 schedule即可定时执行(此处cron使用UTC时区)
 ![](doc/定时执行.png)
+
+
+## 备注
+
+### 通过API调用后，获取run_id
+
+https://stackoverflow.com/questions/69479400/get-run-id-after-triggering-a-github-workflow-dispatch-event
+
+https://github.com/orgs/community/discussions/17389

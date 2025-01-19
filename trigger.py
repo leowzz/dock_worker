@@ -1,4 +1,5 @@
 import os
+import uuid
 
 import requests
 from config import settings
@@ -11,12 +12,14 @@ from utils import normalize_image_name
 class ImageArgs(BaseModel):
     source: str
     target: str | None = None  # 私有仓库镜像, aliyun.com/your_space/{target}
+    distinct_id: str | None = None
 
     def __init__(self, **data):
         super().__init__(**data)
         if self.target is None:
             self.target = self.source
         self.target = normalize_image_name(self.target, remove_namespace=True)
+        self.distinct_id = self.distinct_id or uuid.uuid4().hex[:6]
 
 
 class GitHubActionManager:
@@ -144,7 +147,7 @@ class GitHubActionManager:
         )
         logger.debug(f"{response.text=}")
         if response.status_code == 204:
-            logger.success(f"Workflow {workflow.name} triggered successfully")
+            logger.success(f"Workflow {workflow.name} triggered successfully. distinct_id: {image_args.distinct_id}")
             return True
         return False
 
@@ -223,9 +226,9 @@ class GitHubActionManager:
                                 running_job_id = run_info['id']
                                 logger.info(f"Current run number: {run_info['run_number']}, {running_job_id=}")
                                 break
-                            if run_info['run_number'] > last_run_number:
+                            if run_info['run_number'] > last_run_number and f'[{image_args.distinct_id}]' in run_info['name']:
                                 running_job_id = run_info['id']
-                                logger.info(f"Current run number: {run_info['run_number']}, {running_job_id=}")
+                                logger.info(f"Current run number: {run_info['run_number']}, {running_job_id=}, {run_info['name']=}")
                                 continue
                 else:
                     current_run = self.get_workflow_run_info(running_job_id)
