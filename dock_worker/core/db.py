@@ -42,11 +42,14 @@ class Jobs(Base):
     source = Column(String, index=True)
     target = Column(String, index=True)
     run_number = Column(Integer, index=True)
+    run_id = Column(String, index=True)
+    distinct_id = Column(String, index=True)
     status = Column(String, comment="状态: completed, running, failed, pending")
     repo_url = Column(String, index=True)
     repo_namespace = Column(String, index=True)
     workflow_id = Column(Integer, index=True)
     workflow_name = Column(String, index=True)
+    full_url = Column(String, index=True)
 
 
 def init_db():

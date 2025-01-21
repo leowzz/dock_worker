@@ -4,6 +4,7 @@ from dock_worker.trigger import GitHubActionManager, ImageArgs
 from loguru import logger
 from dock_worker.schemas import TriggerRequest
 from dock_worker.core import config
+from dock_worker.core.db import Jobs, get_db
 
 app = FastAPI(title="Docker Image Pusher API")
 
@@ -40,20 +41,18 @@ async def trigger_workflow(request: TriggerRequest):
     logger.info(f"Trigger request: {image_args=}, {request=}")
 
     if request.command == "fork":
-        success = action_trigger.fork_image(
-            image_args=image_args, test_mode=request.test_mode
+        new_job_obj = action_trigger.fork_image(
+            image_args=image_args, test_mode=request.test_mode, trigger_mode=True
         )
-        if not success:
+        if not new_job_obj:
             raise HTTPException(status_code=500, detail="Fork image failed")
-        return {"status": "success", "message": "Image fork triggered"}
 
-    elif request.command == "pull":
-        success = action_trigger.fork_and_pull(
-            image_args=image_args, test_mode=request.test_mode
-        )
-        if not success:
-            raise HTTPException(status_code=500, detail="Fork and pull image failed")
-        return {"status": "success", "message": "Image fork and pull triggered"}
+        with get_db() as db:
+            new_job = Jobs(**new_job_obj.model_dump())
+            db.add(new_job)
+            db.commit()
+            db.refresh(new_job)
+        return new_job
 
     raise HTTPException(status_code=400, detail="Invalid command")
 

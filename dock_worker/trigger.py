@@ -127,7 +127,7 @@ class GitHubActionManager:
             return False
         return True
 
-    def fork_image(self, image_args: ImageArgs, test_mode=False):
+    def fork_image(self, image_args: ImageArgs, test_mode=False, trigger_mode=False):
         """
         Forks a Docker image from the origin to the self repository.
         :return: True if the workflow was triggered successfully, False otherwise.
@@ -173,11 +173,26 @@ class GitHubActionManager:
                                 running_job_id = run_info['id']
                                 logger.info(f"Current run number: {run_info['run_number']}, {running_job_id=}")
                                 break
-                            if run_info['run_number'] > last_run_number and f'[{image_args.distinct_id}]' in run_info[
-                                'name']:
+                            if (run_info['run_number'] > last_run_number and
+                                    f'[{image_args.distinct_id}]' in run_info['name']):
                                 running_job_id = run_info['id']
                                 logger.info(
                                     f"Current run number: {run_info['run_number']}, {running_job_id=}, {run_info['name']=}")
+                                if trigger_mode:
+                                    from dock_worker.schemas import JobNew
+                                    return JobNew(
+                                        source=image_args.source,
+                                        target=image_args.target,
+                                        run_number=run_info['run_number'],
+                                        run_id=run_info['id'],
+                                        distinct_id=image_args.distinct_id,
+                                        status=run_info['status'],
+                                        repo_url=config.image_repositories_endpoint,
+                                        repo_namespace=self.name_space,
+                                        workflow_id=selected_workflow.id,
+                                        workflow_name=workflow_name,
+                                        full_url=self.make_image_full_name(image_args.target)
+                                    )
                                 continue
                 else:
                     current_run = self.get_workflow_run_info(running_job_id)

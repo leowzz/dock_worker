@@ -56,3 +56,30 @@ class TriggerRequest(BaseModel):
     command: str = "fork"  # "fork" or "pull"
     workflow: str | None = None
     test_mode: bool = False
+
+
+class JobBase(BaseModel):
+    source: str
+    target: str | None = None
+    run_number: int | None = None
+    run_id: int | None = None
+    distinct_id: str | None = None
+    status: str = "pending"
+    repo_url: str | None = None
+    repo_namespace: str | None = None
+    workflow_id: int | None = None
+    workflow_name: str | None = None
+    full_url: str | None = None
+
+
+class JobInDB(JobBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class JobNew(JobBase):
+    pass
