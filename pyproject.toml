@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "docker-image-forker"
+description = "Fork Docker images between registries using GitHub Actions"
+keywords = ["docker", "github-actions", "registry", "cli"]
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Leo Wang", email = "leo03w@gmail.com"}
+]
+dynamic = ["version"]
+classifiers = [
+    "Operating System :: OS Independent",
+    "Topic :: Software Development", 
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: Apache Software License"
+]
+dependencies = [
+    "requests >= 2.31.0, < 3.0.0",
+    "pydantic >= 2.4.2, < 3.0.0",
+    "loguru >= 0.7.2, < 1.0.0", 
+    "rich >= 13.6.0, < 14.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest >= 7.0.0, < 8.0.0",
+    "black >= 22.0.0, < 23.0.0",
+    "isort >= 5.0.0, < 6.0.0",
+    "ruff >= 0.0.256",
+    "pre-commit >= 3.1.1, < 4.0.0"
+]
+
+[project.scripts]
+docker-image-forker = "cli:main"

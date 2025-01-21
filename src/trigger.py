@@ -1,25 +1,9 @@
-import os
-import uuid
-
 import requests
-from config import settings
 from loguru import logger
-from pydantic import BaseModel, field_validator
-from datetime import datetime
-from utils import normalize_image_name
 
-
-class ImageArgs(BaseModel):
-    source: str
-    target: str | None = None  # 私有仓库镜像, aliyun.com/your_space/{target}
-    distinct_id: str | None = None
-
-    def __init__(self, **data):
-        super().__init__(**data)
-        if self.target is None:
-            self.target = self.source
-        self.target = normalize_image_name(self.target, remove_namespace=True)
-        self.distinct_id = self.distinct_id or uuid.uuid4().hex[:6]
+from config import settings
+from schemas import ImageArgs, Workflow, WorkflowsResponse, WorkflowDetails
+from utils import execute_command
 
 
 class GitHubActionManager:
@@ -42,34 +26,6 @@ class GitHubActionManager:
             "X-GitHub-Api-Version": "2022-11-28",
         }
 
-    class Workflow(BaseModel):
-        id: int
-        node_id: str
-        name: str
-        path: str
-        state: str
-        created_at: datetime
-        updated_at: datetime
-        url: str
-        html_url: str
-        badge_url: str
-
-    class WorkflowsResponse(BaseModel):
-        total_count: int
-        workflows: list["GitHubActionManager.Workflow"]
-
-    class WorkflowDetails(BaseModel):
-        id: int
-        node_id: str
-        name: str
-        path: str
-        state: str
-        created_at: datetime
-        updated_at: datetime
-        url: str
-        html_url: str
-        badge_url: str
-
     def get_workflows(self):
         response = requests.get(
             url=f"{self.api_endpoint}/repos/{self.github_username}/{self.github_repo}/actions/workflows",
@@ -78,7 +34,7 @@ class GitHubActionManager:
         )
         resp_json = response.json()
         logger.debug(f"get workers: {resp_json}")
-        res = self.WorkflowsResponse.model_validate(resp_json)
+        res = WorkflowsResponse.model_validate(resp_json)
         return res
 
     def get_workflow_info(self, workflow_id):
@@ -89,7 +45,7 @@ class GitHubActionManager:
             proxies=self.proxy,
         )
         resp_json = response.json()
-        res = self.WorkflowDetails.model_validate(resp_json)
+        res = WorkflowDetails.model_validate(resp_json)
         return res
 
     def get_workflow_runs(self, workflow_id, status=None, per_page=3, page=1, event='workflow_dispatch'):
@@ -154,22 +110,13 @@ class GitHubActionManager:
     def make_image_full_name(self, image_name: str) -> str:
         return f"{self.image_repositories_endpoint}/{self.name_space}/{image_name}"
 
-    def execute_command(self, command: str) -> bool:
-        try:
-            logger.info(f"Executing command: {command}")
-            os.system(command)
-            return True
-        except Exception as e:
-            logger.error(f"Command execution failed: {e}")
-            return False
-
     def pull_image(self, image_name: str) -> bool:
         pull_cmd = f"docker pull {self.make_image_full_name(image_name)}"
-        return self.execute_command(pull_cmd)
+        return execute_command(pull_cmd)
 
     def tag_image(self, source_image: str, target_image: str) -> bool:
         tag_cmd = f"docker tag {self.make_image_full_name(source_image)} {target_image}"
-        return self.execute_command(tag_cmd)
+        return execute_command(tag_cmd)
 
     def fork_and_pull(self, image_args: ImageArgs, test_mode=False) -> bool:
         if not self.fork_image(image_args=image_args, test_mode=test_mode):
@@ -226,9 +173,11 @@ class GitHubActionManager:
                                 running_job_id = run_info['id']
                                 logger.info(f"Current run number: {run_info['run_number']}, {running_job_id=}")
                                 break
-                            if run_info['run_number'] > last_run_number and f'[{image_args.distinct_id}]' in run_info['name']:
+                            if run_info['run_number'] > last_run_number and f'[{image_args.distinct_id}]' in run_info[
+                                'name']:
                                 running_job_id = run_info['id']
-                                logger.info(f"Current run number: {run_info['run_number']}, {running_job_id=}, {run_info['name']=}")
+                                logger.info(
+                                    f"Current run number: {run_info['run_number']}, {running_job_id=}, {run_info['name']=}")
                                 continue
                 else:
                     current_run = self.get_workflow_run_info(running_job_id)

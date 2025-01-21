@@ -1,4 +1,7 @@
+import os
 from typing import TypeAlias, Literal
+
+from loguru import logger
 
 ReplaceStrModes: TypeAlias = Literal['-', '_']
 
@@ -25,3 +28,13 @@ def normalize_image_name(image_name: str, remove_namespace: bool = True, replace
         else:
             return image_name.replace('/', replace_char)
     return image_name
+
+
+def execute_command(command: str) -> bool:
+    try:
+        logger.info(f"Executing command: {command}")
+        os.system(command)
+        return True
+    except Exception as e:
+        logger.error(f"Command execution failed: {e}")
+        return False

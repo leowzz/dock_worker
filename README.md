@@ -17,6 +17,18 @@
 
 ## 使用方式
 
+```bash
+pip install .
+```
+
+```bash
+export github_token=your_token
+```
+
+```bash
+docker-image-forker --help
+```
+
 ### 配置文件
 
 在项目根目录下创建 `.env` 配置文件, 参考 `config.py` 中定义的配置项进行设置

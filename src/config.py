@@ -1,7 +1,7 @@
 import os
 from pydantic_settings import BaseSettings
 
-BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class Settings(BaseSettings):
@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     https_proxy: str | None = None
     github_username: str = "leowzz"  # github用户名
     github_repo: str = "docker_image_pusher"  # github仓库名, fork此项目后的仓库名
+
+    db_path: str = os.path.join(BASE_DIR, "dclone.sqlite")
 
     class Config:
         env_file = os.path.join(BASE_DIR, ".env")
