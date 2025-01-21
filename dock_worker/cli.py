@@ -2,7 +2,7 @@
 import argparse
 
 from dock_worker.core import config
-from dock_worker.trigger import GitHubActionManager, ImageArgs
+from dock_worker.trigger import GitHubActionManager, ImageArgs, action_trigger
 from loguru import logger
 from rich.console import Console
 from rich.table import Table
@@ -40,9 +40,6 @@ def main():
         parser.print_help()
         return
 
-    # Initialize GitHubActionTrigger
-    action_trigger = GitHubActionManager()
-
     # Get workflows
     workflows = action_trigger.get_workflows()
     if not workflows:
@@ -53,18 +50,6 @@ def main():
         show_workflows(workflows)
         return
 
-    workflow_names = [_.name for _ in workflows.workflows]
-
-    if args.workflow and args.workflow not in workflow_names:
-        logger.error(f"{args.workflow} not exist in {workflow_names=}")
-        return
-
-    selected_workflow = args.workflow or next(
-        (_ for _ in workflows.workflows if _.name == config.default_workflow_name),
-        None,
-    )
-    logger.info(f"Selected Workflow: {selected_workflow.name}")
-
     if args.command in ["fork", "pull"]:
         # Create trigger args
         image_args = ImageArgs(
@@ -73,8 +58,9 @@ def main():
         )
         logger.info(f"{image_args=}, {args=}")
         if args.command == "fork":
-            if not action_trigger.fork_image(image_args=image_args, test_mode=args.test_mode):
+            if not (job_info := action_trigger.fork_image(image_args=image_args, test_mode=args.test_mode)):
                 logger.error("Fork image failed")
+            action_trigger.wait_for_workflow_complete(job_info)
         elif args.command == "pull":
             if not action_trigger.fork_and_pull(image_args=image_args, test_mode=args.test_mode):
                 logger.error("Fork and pull image failed")

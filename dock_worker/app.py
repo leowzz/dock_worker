@@ -2,59 +2,32 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from dock_worker.trigger import GitHubActionManager, ImageArgs
 from loguru import logger
-from dock_worker.schemas import TriggerRequest
+from dock_worker.schemas import TriggerRequest, JobQueryReq
 from dock_worker.core import config
 from dock_worker.core.db import Jobs, get_db
+from dock_worker.trigger import action_trigger
 
 app = FastAPI(title="Docker Image Pusher API")
 
 
 @app.post("/trigger")
 async def trigger_workflow(request: TriggerRequest):
-    action_trigger = GitHubActionManager()
-
-    # Get workflows
-    workflows = action_trigger.get_workflows()
-    if not workflows:
-        raise HTTPException(status_code=404, detail="No workflows found")
-
-    workflow_names = [w.name for w in workflows.workflows]
-
-    if request.workflow and request.workflow not in workflow_names:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Workflow {request.workflow} not found in {workflow_names}",
-        )
-
-    # Get selected workflow
-    selected_workflow = request.workflow or next(
-        (w for w in workflows.workflows if w.name == config.default_workflow_name),
-        None,
-    )
-
-    if not selected_workflow:
-        raise HTTPException(status_code=404, detail="Default workflow not found")
-
-    # Create image args
     image_args = ImageArgs(source=request.source, target=request.target)
 
     logger.info(f"Trigger request: {image_args=}, {request=}")
 
-    if request.command == "fork":
-        new_job_obj = action_trigger.fork_image(
-            image_args=image_args, test_mode=request.test_mode, trigger_mode=True
-        )
-        if not new_job_obj:
-            raise HTTPException(status_code=500, detail="Fork image failed")
+    new_job_obj = action_trigger.fork_image(
+        image_args=image_args, test_mode=False
+    )
+    if not new_job_obj:
+        raise HTTPException(status_code=500, detail="Fork image failed")
 
-        with get_db() as db:
-            new_job = Jobs(**new_job_obj.model_dump())
-            db.add(new_job)
-            db.commit()
-            db.refresh(new_job)
-        return new_job
-
-    raise HTTPException(status_code=400, detail="Invalid command")
+    with get_db() as db:
+        new_job = Jobs(**new_job_obj.model_dump())
+        db.add(new_job)
+        db.commit()
+        db.refresh(new_job)
+    return new_job
 
 
 @app.get("/workflows")
@@ -87,6 +60,16 @@ async def get_workflow_runs(
     action_trigger = GitHubActionManager()
     runs = action_trigger.get_workflow_runs(
         workflow_id=workflow_id, status=status, per_page=per_page, page=page
+    )
+    return runs
+
+
+@app.get("/workflow/runs/{distinct_id}")
+async def get_workflow_runs(distinct_id: str):
+    runs = action_trigger.wait_for_workflow_complete(
+        image_args=JobQueryReq(distinct_id=distinct_id),
+        test_mode=False,
+        using_db=True
     )
     return runs
 

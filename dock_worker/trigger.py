@@ -6,6 +6,23 @@ from dock_worker.schemas import ImageArgs, Workflow, WorkflowsResponse, Workflow
 from dock_worker.utils import execute_command
 
 
+def update_job_info(current_run, image_args, running_job_id):
+    from dock_worker.core.db import Jobs, get_db
+    from dock_worker.schemas import JobInDB
+    with get_db() as session:
+        job_db = session.query(Jobs).filter(Jobs.distinct_id == image_args.distinct_id).first()
+        if not job_db:
+            logger.error(f"Job {image_args.distinct_id} not found")
+            return False
+        logger.info(f'{current_run["status"]=}, {job_db.id=}')
+        job_db.status = current_run["status"]
+        job_db.run_id = running_job_id
+        job_db.run_number = current_run["run_number"]
+        res_job_info = JobInDB.model_validate(job_db)
+        session.commit()
+        return res_job_info
+
+
 class GitHubActionManager:
     api_endpoint = "https://api.github.com"
     proxy = (
@@ -26,7 +43,15 @@ class GitHubActionManager:
             "X-GitHub-Api-Version": "2022-11-28",
         }
 
-    def get_workflows(self):
+    def __init__(self):
+        self.workflows = self.get_workflows()
+        self.workflow_name = config.default_workflow_name
+        self.workflow: Workflow = next(
+            (wf for wf in self.workflows.workflows if wf.name == self.workflow_name),
+            None,
+        )
+
+    def get_workflows(self) -> WorkflowsResponse:
         response = requests.get(
             url=f"{self.api_endpoint}/repos/{self.github_username}/{self.github_repo}/actions/workflows",
             headers=self.headers,
@@ -48,12 +73,14 @@ class GitHubActionManager:
         res = WorkflowDetails.model_validate(resp_json)
         return res
 
-    def get_workflow_runs(self, workflow_id, status=None, per_page=3, page=1, event='workflow_dispatch'):
+    def get_workflow_runs(
+            self, workflow_id, status=None, per_page=3, page=1, event="workflow_dispatch"
+    ):
         query_params = {
             "event": event,
             "workflow_id": workflow_id,
             "per_page": per_page,
-            "page": page
+            "page": page,
         }
         if status:
             query_params.update({"status": status})
@@ -63,7 +90,7 @@ class GitHubActionManager:
                 f"actions/workflows/{workflow_id}/runs",
             headers=self.headers,
             proxies=self.proxy,
-            params=query_params
+            params=query_params,
         )
         resp_json = response.json()
         return resp_json
@@ -103,7 +130,9 @@ class GitHubActionManager:
         )
         logger.debug(f"{response.text=}")
         if response.status_code == 204:
-            logger.success(f"Workflow {workflow.name} triggered successfully. distinct_id: {image_args.distinct_id}")
+            logger.success(
+                f"Workflow {workflow.name} triggered successfully. distinct_id: {image_args.distinct_id}"
+            )
             return True
         return False
 
@@ -127,98 +156,84 @@ class GitHubActionManager:
             return False
         return True
 
-    def fork_image(self, image_args: ImageArgs, test_mode=False, trigger_mode=False):
+    def fork_image(self, image_args: ImageArgs, test_mode=False):
         """
         Forks a Docker image from the origin to the self repository.
         :return: True if the workflow was triggered successfully, False otherwise.
         """
         logger.debug(f"{image_args=}")
-        workflows = self.get_workflows()
-        workflow_name = config.default_workflow_name
-        selected_workflow = next(
-            (wf for wf in workflows.workflows if wf.name == workflow_name), None
-        )
-        if not selected_workflow:
-            logger.error(f"Workflow `{workflow_name}` not found.")
-            return False
 
-        # 记录最后的 run_number
-        last_run_number = None
-        workflow_runs = self.get_workflow_runs(selected_workflow.id)
-        if workflow_runs and workflow_runs['workflow_runs']:
-            last_run_number = workflow_runs['workflow_runs'][0]['run_number']
-            logger.info(f"Last run number: {last_run_number}")
+        if not self.workflow:
+            logger.error(f"Workflow `{self.workflow_name}` not found.")
+            return False
 
         if not test_mode:
             if not self.create_workflow_dispatch_event(
-                    workflow=selected_workflow,
-                    image_args=image_args
+                    workflow=self.workflow, image_args=image_args
             ):
                 return False
 
+        from dock_worker.schemas import JobNew
+
+        return JobNew(
+            source=image_args.source,
+            target=image_args.target,
+            distinct_id=image_args.distinct_id,
+            repo_url=config.image_repositories_endpoint,
+            repo_namespace=self.name_space,
+            workflow_id=self.workflow.id,
+            workflow_name=self.workflow.name,
+            full_url=self.make_image_full_name(image_args.target),
+        )
+
+    def wait_for_workflow_complete(self, image_args: ImageArgs, test_mode=False, using_db: bool = False):
         # 每隔2s发一次请求, 查看状态是否是 completed
         import time
         from rich.progress import Progress
 
         with Progress() as progress:
-            task = progress.add_task("[cyan]Waiting for workflow to complete...", total=None)
             running_job_id = None
             while True:
                 time.sleep(1)
                 if not running_job_id:
-                    workflow_runs = self.get_workflow_runs(selected_workflow.id)
-                    if workflow_runs and workflow_runs['workflow_runs']:
-                        for run_info in workflow_runs['workflow_runs']:
-                            if test_mode:
-                                running_job_id = run_info['id']
-                                logger.info(f"Current run number: {run_info['run_number']}, {running_job_id=}")
-                                break
-                            if (run_info['run_number'] > last_run_number and
-                                    f'[{image_args.distinct_id}]' in run_info['name']):
-                                running_job_id = run_info['id']
-                                logger.info(
-                                    f"Current run number: {run_info['run_number']}, {running_job_id=}, {run_info['name']=}")
-                                if trigger_mode:
-                                    from dock_worker.schemas import JobNew
-                                    return JobNew(
-                                        source=image_args.source,
-                                        target=image_args.target,
-                                        run_number=run_info['run_number'],
-                                        run_id=run_info['id'],
-                                        distinct_id=image_args.distinct_id,
-                                        status=run_info['status'],
-                                        repo_url=config.image_repositories_endpoint,
-                                        repo_namespace=self.name_space,
-                                        workflow_id=selected_workflow.id,
-                                        workflow_name=workflow_name,
-                                        full_url=self.make_image_full_name(image_args.target)
-                                    )
-                                continue
-                else:
-                    current_run = self.get_workflow_run_info(running_job_id)
-                    if current_run['status'] == 'completed':
-                        if current_run['conclusion'] == 'success':
-                            progress.update(task, description="[green]Workflow completed successfully", total=100,
-                                            completed=100)
-                            logger.success(
-                                f"Workflow completed successfully!\n"
-                                f"You can pull it with: docker pull {self.make_image_full_name(image_args.target)}")
-                            return True
-                        else:
-                            progress.update(task, description="[red]Workflow did not complete successfully",
-                                            total=100, completed=100)
-                            logger.error("Workflow did not complete successfully")
-                            return False
+                    workflow_runs = self.get_workflow_runs(self.workflow.id)
+                    if not workflow_runs:
+                        logger.error("Workflow runs not found")
+                        continue
+                    for run_info in workflow_runs["workflow_runs"]:
+                        if test_mode:
+                            running_job_id = run_info["id"]
+                            logger.info(
+                                f"Current run number: {run_info['run_number']}, {running_job_id=}"
+                            )
+                            break
+                        if f"[{image_args.distinct_id}]" in run_info["name"]:
+                            running_job_id = run_info["id"]
+                            logger.info(
+                                f"Current run number: {run_info['run_number']}, {running_job_id=}, {run_info['name']=}"
+                            )
+                            if image_args.distinct_id and using_db:
+                                updated = update_job_info(run_info, image_args, running_job_id)
+                                if updated:
+                                    return updated
+                    continue
+
+                current_run = self.get_workflow_run_info(running_job_id)
+                if current_run["status"] == "completed":
+                    if current_run["conclusion"] == "success":
+                        logger.success(
+                            f"Workflow completed successfully!\n"
+                            f"You can pull it with: docker pull {self.make_image_full_name(image_args.target)}"
+                        )
+                        return True
                     else:
-                        progress.update(task, description=f"[yellow]Current status: {current_run['status']}")
+                        logger.error("Workflow did not complete successfully")
+                        return False
 
 
+action_trigger = GitHubActionManager()
 if __name__ == "__main__":
-    action_trigger = GitHubActionManager()
-
-    action_trigger.fork_image(ImageArgs(
-        source="ubuntu:20.04", target=None
-    ))
+    action_trigger.fork_image(ImageArgs(source="ubuntu:20.04", target=None))
 
     # workflows = action_trigger.get_workflows()
     # selected_workflow = workflows.workflows[0]

@@ -19,6 +19,10 @@ class ImageArgs(BaseModel):
         self.distinct_id = self.distinct_id or uuid.uuid4().hex[:6]
 
 
+class JobQueryReq(ImageArgs):
+    source: str | None = None
+
+
 class Workflow(BaseModel):
     id: int
     node_id: str
@@ -53,12 +57,9 @@ class WorkflowDetails(BaseModel):
 class TriggerRequest(BaseModel):
     source: str
     target: str | None = None
-    command: str = "fork"  # "fork" or "pull"
-    workflow: str | None = None
-    test_mode: bool = False
 
 
-class JobBase(BaseModel):
+class JobBase(ImageArgs):
     source: str
     target: str | None = None
     run_number: int | None = None

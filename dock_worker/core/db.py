@@ -44,7 +44,7 @@ class Jobs(Base):
     run_number = Column(Integer, index=True)
     run_id = Column(String, index=True)
     distinct_id = Column(String, index=True)
-    status = Column(String, comment="状态: completed, running, failed, pending")
+    status = Column(String, comment="状态: completed, in_progress, failed, pending")
     repo_url = Column(String, index=True)
     repo_namespace = Column(String, index=True)
     workflow_id = Column(Integer, index=True)

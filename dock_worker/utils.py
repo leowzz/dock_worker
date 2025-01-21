@@ -22,6 +22,8 @@ def normalize_image_name(image_name: str, remove_namespace: bool = True, replace
     >>> normalize_image_name('leo03w/ubuntu:20.04', remove_namespace=False, replace_char='_')
     'leo03w_ubuntu:20.04'
     """
+    if not image_name:
+        return ''
     if '/' in image_name:
         if remove_namespace:
             return image_name.split('/')[-1]
