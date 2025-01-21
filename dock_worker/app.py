@@ -1,17 +1,11 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from trigger import GitHubActionManager, ImageArgs
+from dock_worker.trigger import GitHubActionManager, ImageArgs
 from loguru import logger
+from dock_worker.schemas import TriggerRequest
+from dock_worker.core import config
 
 app = FastAPI(title="Docker Image Pusher API")
-
-
-class TriggerRequest(BaseModel):
-    source: str
-    target: str | None = None
-    command: str = "fork"  # "fork" or "pull"
-    workflow: str | None = None
-    test_mode: bool = False
 
 
 @app.post("/trigger")
@@ -33,7 +27,7 @@ async def trigger_workflow(request: TriggerRequest):
 
     # Get selected workflow
     selected_workflow = request.workflow or next(
-        (w for w in workflows.workflows if w.name == settings.default_workflow_name),
+        (w for w in workflows.workflows if w.name == config.default_workflow_name),
         None,
     )
 
@@ -89,7 +83,7 @@ async def list_workflows():
 
 @app.get("/workflow/{workflow_id}/runs")
 async def get_workflow_runs(
-    workflow_id: int, status: str | None = None, per_page: int = 3, page: int = 1
+        workflow_id: int, status: str | None = None, per_page: int = 3, page: int = 1
 ):
     action_trigger = GitHubActionManager()
     runs = action_trigger.get_workflow_runs(

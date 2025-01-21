@@ -1,28 +1,28 @@
 import requests
 from loguru import logger
 
-from config import settings
-from schemas import ImageArgs, Workflow, WorkflowsResponse, WorkflowDetails
-from utils import execute_command
+from dock_worker.core import config
+from dock_worker.schemas import ImageArgs, Workflow, WorkflowsResponse, WorkflowDetails
+from dock_worker.utils import execute_command
 
 
 class GitHubActionManager:
     api_endpoint = "https://api.github.com"
     proxy = (
-        {"http": settings.http_proxy, "https": settings.http_proxy}
-        if settings.http_proxy
+        {"http": config.http_proxy, "https": config.http_proxy}
+        if config.http_proxy
         else None
     )
-    github_username = settings.github_username
-    github_repo = settings.github_repo
-    name_space = settings.name_space
-    image_repositories_endpoint = settings.image_repositories_endpoint
+    github_username = config.github_username
+    github_repo = config.github_repo
+    name_space = config.name_space
+    image_repositories_endpoint = config.image_repositories_endpoint
 
     @property
     def headers(self):
         return {
             "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {settings.github_token}",
+            "Authorization": f"Bearer {config.github_token}",
             "X-GitHub-Api-Version": "2022-11-28",
         }
 
@@ -134,7 +134,7 @@ class GitHubActionManager:
         """
         logger.debug(f"{image_args=}")
         workflows = self.get_workflows()
-        workflow_name = settings.default_workflow_name
+        workflow_name = config.default_workflow_name
         selected_workflow = next(
             (wf for wf in workflows.workflows if wf.name == workflow_name), None
         )

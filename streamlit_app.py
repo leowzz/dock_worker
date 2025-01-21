@@ -1,10 +1,10 @@
 import streamlit as st
-from trigger import GitHubActionManager, ImageArgs
+from dock_worker.trigger import GitHubActionManager, ImageArgs
 from loguru import logger
-from config import settings
+from dock_worker.core import config
 
 # Initialize GitHubActionTrigger
-WORKFLOW_NAME = settings.default_workflow_name
+WORKFLOW_NAME = config.default_workflow_name
 
 # Streamlit page title
 st.title("GitHub Action Workflow Trigger")

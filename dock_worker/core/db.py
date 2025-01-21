@@ -1,24 +1,27 @@
+from contextlib import contextmanager
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, DateTime
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-
-from config import settings
+from sqlalchemy.orm import DeclarativeBase
+from dock_worker.core import config
 
 # Create SQLite database engine
-SQLALCHEMY_DATABASE_URL = f"sqlite:///{settings.db_path}"
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{config.db_path}"
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
 )
 
 # Create session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=True, bind=engine)
+
 
 # Create base class for declarative models
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 
+@contextmanager
 def get_db():
     """
     Get database session

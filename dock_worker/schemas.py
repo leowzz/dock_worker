@@ -1,7 +1,10 @@
-from pydantic import BaseModel, field_validator
 from datetime import datetime
-from utils import normalize_image_name
 import uuid
+
+from pydantic import BaseModel
+
+from dock_worker.utils import normalize_image_name
+
 
 class ImageArgs(BaseModel):
     source: str
@@ -14,7 +17,8 @@ class ImageArgs(BaseModel):
             self.target = self.source
         self.target = normalize_image_name(self.target, remove_namespace=True)
         self.distinct_id = self.distinct_id or uuid.uuid4().hex[:6]
-        
+
+
 class Workflow(BaseModel):
     id: int
     node_id: str
@@ -27,9 +31,11 @@ class Workflow(BaseModel):
     html_url: str
     badge_url: str
 
+
 class WorkflowsResponse(BaseModel):
     total_count: int
     workflows: list[Workflow]
+
 
 class WorkflowDetails(BaseModel):
     id: int
@@ -42,3 +48,11 @@ class WorkflowDetails(BaseModel):
     url: str
     html_url: str
     badge_url: str
+
+
+class TriggerRequest(BaseModel):
+    source: str
+    target: str | None = None
+    command: str = "fork"  # "fork" or "pull"
+    workflow: str | None = None
+    test_mode: bool = False

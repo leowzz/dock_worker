@@ -1,8 +1,8 @@
 #! /root/miniconda3/envs/demos/bin/python
 import argparse
 
-from config import settings
-from trigger import GitHubActionManager, ImageArgs
+from dock_worker.core import config
+from dock_worker.trigger import GitHubActionManager, ImageArgs
 from loguru import logger
 from rich.console import Console
 from rich.table import Table
@@ -60,7 +60,7 @@ def main():
         return
 
     selected_workflow = args.workflow or next(
-        (_ for _ in workflows.workflows if _.name == settings.default_workflow_name),
+        (_ for _ in workflows.workflows if _.name == config.default_workflow_name),
         None,
     )
     logger.info(f"Selected Workflow: {selected_workflow.name}")
