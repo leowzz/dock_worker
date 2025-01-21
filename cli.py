@@ -65,18 +65,19 @@ def main():
     )
     logger.info(f"Selected Workflow: {selected_workflow.name}")
 
-    # Create trigger args
-    image_args = ImageArgs(
-        source=args.source,
-        target=args.target,
-    )
-    logger.info(f"{image_args=}, {args=}")
-    if args.command == "fork":
-        if not action_trigger.fork_image(image_args=image_args, test_mode=args.test_mode):
-            logger.error("Fork image failed")
-    elif args.command == "pull":
-        if not action_trigger.fork_and_pull(image_args=image_args, test_mode=args.test_mode):
-            logger.error("Fork and pull image failed")
+    if args.command in ["fork", "pull"]:
+        # Create trigger args
+        image_args = ImageArgs(
+            source=args.source,
+            target=args.target,
+        )
+        logger.info(f"{image_args=}, {args=}")
+        if args.command == "fork":
+            if not action_trigger.fork_image(image_args=image_args, test_mode=args.test_mode):
+                logger.error("Fork image failed")
+        elif args.command == "pull":
+            if not action_trigger.fork_and_pull(image_args=image_args, test_mode=args.test_mode):
+                logger.error("Fork and pull image failed")
 
 
 def show_workflows(workflows):
