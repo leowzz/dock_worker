@@ -38,7 +38,7 @@ class GitHubActionManager:
     def headers(self):
         return {
             "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {settings.token}",
+            "Authorization": f"Bearer {settings.github_token}",
             "X-GitHub-Api-Version": "2022-11-28",
         }
 
