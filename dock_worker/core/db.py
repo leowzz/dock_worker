@@ -45,6 +45,8 @@ class Jobs(Base):
     status = Column(String, comment="状态: completed, running, failed, pending")
     repo_url = Column(String, index=True)
     repo_namespace = Column(String, index=True)
+    workflow_id = Column(Integer, index=True)
+    workflow_name = Column(String, index=True)
 
 
 def init_db():
