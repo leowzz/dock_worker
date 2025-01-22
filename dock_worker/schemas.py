@@ -1,5 +1,6 @@
 from datetime import datetime
 import uuid
+from enum import Enum
 
 from pydantic import BaseModel
 
@@ -84,3 +85,20 @@ class JobInDB(JobBase):
 
 class JobNew(JobBase):
     pass
+
+
+class JobStatusEnum(str, Enum):
+    pending = "pending"  # 非github 状态, 仅用于初始值
+    queued = "queued"
+    in_progress = "in_progress"
+    completed = "completed"
+    failed = "failed"
+
+
+status_2_progress_number = {
+    JobStatusEnum.pending: 20,
+    JobStatusEnum.queued: 30,
+    JobStatusEnum.in_progress: 50,
+    JobStatusEnum.completed: 100,
+    JobStatusEnum.failed: 0,
+}

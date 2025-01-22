@@ -41,7 +41,7 @@ def main():
         return
 
     # Get workflows
-    workflows = action_trigger.get_workflows()
+    workflows = action_trigger.workflows
     if not workflows:
         logger.info("workflows not exist")
         return

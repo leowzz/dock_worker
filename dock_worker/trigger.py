@@ -1,8 +1,12 @@
+import time
+from typing import Any
+
 import requests
 from loguru import logger
 
 from dock_worker.core import config
-from dock_worker.schemas import ImageArgs, Workflow, WorkflowsResponse, WorkflowDetails
+from dock_worker.schemas import ImageArgs, Workflow, WorkflowsResponse, WorkflowDetails, JobStatusEnum, \
+    status_2_progress_number
 from dock_worker.utils import execute_command
 
 
@@ -188,47 +192,67 @@ class GitHubActionManager:
 
     def wait_for_workflow_complete(self, image_args: ImageArgs, test_mode=False, using_db: bool = False):
         # 每隔2s发一次请求, 查看状态是否是 completed
-        import time
         from rich.progress import Progress
 
         with Progress() as progress:
-            running_job_id = None
+            running_job_id, updated = self.get_run_id_by_distinct_id(image_args, test_mode, using_db)
+            if not running_job_id:
+                logger.error("Workflow run not found")
+                return False
+            if running_job_id == -1:
+                logger.error("Timeout waiting for workflow run")
+                return False
+            task_id = progress.add_task(f"Waiting for workflow run {running_job_id} to complete", total=100)
+            progress.update(task_id, completed=20)
             while True:
-                time.sleep(1)
-                if not running_job_id:
-                    workflow_runs = self.get_workflow_runs(self.workflow.id)
-                    if not workflow_runs:
-                        logger.error("Workflow runs not found")
-                        continue
-                    for run_info in workflow_runs["workflow_runs"]:
-                        if test_mode:
-                            running_job_id = run_info["id"]
-                            logger.info(
-                                f"Current run number: {run_info['run_number']}, {running_job_id=}"
-                            )
-                            break
-                        if f"[{image_args.distinct_id}]" in run_info["name"]:
-                            running_job_id = run_info["id"]
-                            logger.info(
-                                f"Current run number: {run_info['run_number']}, {running_job_id=}, {run_info['name']=}"
-                            )
-                            if image_args.distinct_id and using_db:
-                                updated = update_job_info(run_info, image_args, running_job_id)
-                                if updated:
-                                    return updated
-                    continue
+                current_run = self.get_workflow_run_info(run_id=running_job_id)
+                status = current_run['status']
+                if status not in JobStatusEnum.__members__.values():
+                    logger.warning(f"Unknown status: {status}")
+                else:
+                    progress.update(task_id, completed=status_2_progress_number[status])
 
-                current_run = self.get_workflow_run_info(running_job_id)
-                if current_run["status"] == "completed":
+                if status == JobStatusEnum.completed:
                     if current_run["conclusion"] == "success":
-                        logger.success(
-                            f"Workflow completed successfully!\n"
-                            f"You can pull it with: docker pull {self.make_image_full_name(image_args.target)}"
-                        )
-                        return True
+                        break
                     else:
-                        logger.error("Workflow did not complete successfully")
+                        logger.warning(f"Workflow {status}, but conclusion is not success")
                         return False
+                time.sleep(1)
+        logger.success(
+            f"Workflow completed successfully!\n"
+            f"You can pull it with: \ndocker pull {self.make_image_full_name(image_args.target)}"
+        )
+        return True
+
+    def get_run_id_by_distinct_id(self, image_args, test_mode, using_db) -> tuple[int, bool | Any]:
+        start_time = time.time()
+        while True:
+            if time.time() - start_time > 10:
+                logger.error("Timeout waiting for workflow run")
+                return -1, False
+
+            workflow_runs = self.get_workflow_runs(self.workflow.id)
+            if not workflow_runs:
+                logger.error("Workflow runs not found")
+                continue
+            for run_info in workflow_runs["workflow_runs"]:
+                if test_mode:
+                    running_job_id = run_info["id"]
+                    logger.info(
+                        f"Current run number: {run_info['run_number']}, {running_job_id=}"
+                    )
+                    return running_job_id, True
+                if f"[{image_args.distinct_id}]" in run_info["name"]:
+                    running_job_id = run_info["id"]
+                    logger.info(
+                        f"Current run number: {run_info['run_number']}, {running_job_id=}, \n{run_info['name']=}"
+                    )
+                    if image_args.distinct_id and using_db:
+                        if updated := update_job_info(run_info, image_args, running_job_id):
+                            return running_job_id, updated
+                    return running_job_id, True
+            time.sleep(1)
 
 
 action_trigger = GitHubActionManager()
