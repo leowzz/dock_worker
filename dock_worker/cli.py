@@ -4,10 +4,14 @@ from loguru import logger
 from rich.console import Console
 from rich.table import Table
 
+cli_desc = """
+Github Action Workflow Trigger.
+"""
+
 
 def main():
     # Initialize argument parser
-    parser = argparse.ArgumentParser(description="Trigger GitHub Action Workflow")
+    parser = argparse.ArgumentParser(description=cli_desc)
     parser.add_argument("source", type=str, nargs="?", help="Source Image URL")
     parser.add_argument(
         "target", type=str, nargs="?", help="Destination Image URL", default=None

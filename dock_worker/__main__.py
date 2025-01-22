@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-from cli import main
+from dock_worker.cli import main
 
 if __name__ == '__main__':
     main()
