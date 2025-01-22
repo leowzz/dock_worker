@@ -7,7 +7,6 @@ name = "dock_worker"
 description = "Fork Docker images between registries using GitHub Actions"
 keywords = ["docker", "github-actions", "registry", "cli"]
 readme = "README.md"
-license = {text = "Apache-2.0"}
 requires-python = ">=3.10"
 authors = [
     {name = "Leo Wang", email = "leo03w@gmail.com"}
@@ -21,7 +20,6 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "License :: OSI Approved :: Apache Software License"
 ]
 dependencies = [
     "requests >= 2.31.0, < 3.0.0",
