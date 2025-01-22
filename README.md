@@ -147,3 +147,18 @@ xiaoyaliu/alist
 https://stackoverflow.com/questions/69479400/get-run-id-after-triggering-a-github-workflow-dispatch-event
 
 https://github.com/orgs/community/discussions/17389
+
+## PyPi packaging
+
+twine==6.1.0 版本太新, 导致
+
+```bash
+❯ python -m twine check dist/*
+Checking dist/dock_worker-0.0.0-py3-none-any.whl: ERROR    InvalidDistribution: Invalid distribution metadata: unrecognized or malformed field 'license-file' 
+```
+
+```bash
+pip install "twine<6.0" -U
+```
+
+降到 5.1.1 好了
