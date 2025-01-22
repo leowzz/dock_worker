@@ -37,7 +37,7 @@ def main():
     args = parser.parse_args()
 
     # Show help if no arguments are provided
-    if not any(vars(args).values()):
+    if not args.source:
         parser.print_help()
         return
 
