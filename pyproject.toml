@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "docker-image-forker"
+name = "dock_worker"
 description = "Fork Docker images between registries using GitHub Actions"
 keywords = ["docker", "github-actions", "registry", "cli"]
 readme = "README.md"
@@ -39,5 +39,8 @@ dev = [
     "pre-commit >= 3.1.1, < 4.0.0"
 ]
 
+[tool.setuptools]
+package-dir = {"dock_worker" = "dock_worker"}
+
 [project.scripts]
-docker-image-forker = "cli:main"
+dock-worker = "dock_worker.cli:main"

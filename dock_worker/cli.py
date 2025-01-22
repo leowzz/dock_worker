@@ -1,8 +1,5 @@
-#! /root/miniconda3/envs/demos/bin/python
 import argparse
 
-from dock_worker.core import config
-from dock_worker.trigger import GitHubActionManager, ImageArgs, action_trigger
 from loguru import logger
 from rich.console import Console
 from rich.table import Table
@@ -29,7 +26,7 @@ def main():
         "--list_workflows", "-l", action="store_true", help="List all workflows"
     )
     parser.add_argument(
-        "-test_mode", "-t", action="store_true", help="是否以测试模式运行"
+        "--test_mode", "-t", action="store_true", help="是否以测试模式运行"
     )
 
     # Parse arguments
@@ -40,6 +37,7 @@ def main():
         parser.print_help()
         return
 
+    from dock_worker.trigger import ImageArgs, action_trigger
     # Get workflows
     workflows = action_trigger.workflows
     if not workflows:
