@@ -27,17 +27,17 @@ def main():
         "--workflow", type=str, help="workflow name to trigger", default=None
     )
     parser.add_argument(
-        "--list_workflows", "-l", action="store_true", help="List all workflows"
+        "--list-workflows", "-l", action="store_true", help="List all workflows"
     )
     parser.add_argument(
-        "--test_mode", "-t", action="store_true", help="是否以测试模式运行"
+        "--test-mode", "-t", action="store_true", help="是否以测试模式运行"
     )
 
     # Parse arguments
     args = parser.parse_args()
 
     # Show help if no arguments are provided
-    if not args.source:
+    if not args.list_workflows and not args.source:
         parser.print_help()
         return
 

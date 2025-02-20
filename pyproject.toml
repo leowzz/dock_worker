@@ -42,4 +42,6 @@ dev = [
 package-dir = {"dock_worker" = "dock_worker"}
 
 [project.scripts]
-dock-worker = "dock_worker.cli:main"
+dock_worker = "dock_worker.cli:main"
+dw = "dock_worker.cli:main"
+dclone = "dock_worker.cli:main"
