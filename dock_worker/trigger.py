@@ -202,6 +202,9 @@ class GitHubActionManager:
             if running_job_id == -1:
                 logger.error("Timeout waiting for workflow run")
                 return False
+
+            logger.info(f"Action Detail: https://github.com/leowzz/dock_worker/actions/runs/{running_job_id}")
+            logger.info(f"Wait for the job to be completed, then you can pull the image. \n{self.make_image_full_name(image_args.target)}")
             task_id = progress.add_task(f"Waiting for workflow run {running_job_id} to complete", total=100)
             progress.update(task_id, completed=20)
             while True:
