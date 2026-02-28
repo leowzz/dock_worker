@@ -1,0 +1,214 @@
+# https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#workflow_dispatch
+name: ApiSkopeoImageCopier
+run-name: Copy ${{ inputs.source }} -> ${{ inputs.target }} by @${{ github.actor }} [${{ inputs.distinct_id || 'N/A' }}]
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: '源镜像引用（不带协议），例如 `docker.io/library/ubuntu:22.04` 或 `./bundle/ubuntu.oci`'
+        required: true
+        type: string
+      target:
+        description: '目标镜像引用（不带协议）。docker 目标可传完整名，或仅传 `{repo}/{image}:{tag}`（自动拼阿里云仓库）'
+        required: true
+        type: string
+      source_transport:
+        description: '源传输协议'
+        required: true
+        default: 'docker'
+        type: choice
+        options:
+          - docker
+          - docker-archive
+          - oci
+          - oci-archive
+          - dir
+      target_transport:
+        description: '目标传输协议'
+        required: true
+        default: 'docker'
+        type: choice
+        options:
+          - docker
+          - docker-archive
+          - oci
+          - oci-archive
+          - dir
+      copy_all:
+        description: '复制多架构 manifest（推荐，等价 skopeo --all）'
+        required: true
+        default: true
+        type: boolean
+      platform:
+        description: '单架构复制时生效，格式 `linux/amd64` 或 `linux/arm64`（copy_all=true 时忽略）'
+        required: false
+        type: string
+      src_tls_verify:
+        description: '校验源端 TLS 证书'
+        required: true
+        default: true
+        type: boolean
+      dest_tls_verify:
+        description: '校验目标 TLS 证书'
+        required: true
+        default: true
+        type: boolean
+      preserve_digests:
+        description: '尽量保持 digest 不变（仓库不支持时可能失败）'
+        required: true
+        default: false
+        type: boolean
+      remove_signatures:
+        description: '移除镜像签名'
+        required: true
+        default: false
+        type: boolean
+      retry_times:
+        description: '失败重试次数'
+        required: true
+        default: '3'
+        type: string
+      additional_copy_opts:
+        description: '附加 skopeo copy 参数（空格分隔），如 `--format v2s2`'
+        required: false
+        type: string
+      dry_run:
+        description: '仅打印最终命令，不执行复制'
+        required: true
+        default: false
+        type: boolean
+      distinct_id:
+        description: 'Distinct ID'
+        required: false
+        type: string
+
+env:
+  ALIYUN_REGISTRY: "${{ secrets.ALIYUN_REGISTRY }}"
+  ALIYUN_NAME_SPACE: "${{ secrets.ALIYUN_NAME_SPACE }}"
+  ALIYUN_REGISTRY_USER: "${{ secrets.ALIYUN_REGISTRY_USER }}"
+  ALIYUN_REGISTRY_PASSWORD: "${{ secrets.ALIYUN_REGISTRY_PASSWORD }}"
+  SOURCE_REGISTRY_USER: "${{ secrets.SOURCE_REGISTRY_USER }}"
+  SOURCE_REGISTRY_PASSWORD: "${{ secrets.SOURCE_REGISTRY_PASSWORD }}"
+  SOURCE: ${{ github.event.inputs.source }}
+  TARGET: ${{ github.event.inputs.target }}
+  SOURCE_TRANSPORT: ${{ github.event.inputs.source_transport }}
+  TARGET_TRANSPORT: ${{ github.event.inputs.target_transport }}
+  COPY_ALL: ${{ github.event.inputs.copy_all }}
+  PLATFORM: ${{ github.event.inputs.platform }}
+  SRC_TLS_VERIFY: ${{ github.event.inputs.src_tls_verify }}
+  DEST_TLS_VERIFY: ${{ github.event.inputs.dest_tls_verify }}
+  PRESERVE_DIGESTS: ${{ github.event.inputs.preserve_digests }}
+  REMOVE_SIGNATURES: ${{ github.event.inputs.remove_signatures }}
+  RETRY_TIMES: ${{ github.event.inputs.retry_times }}
+  ADDITIONAL_COPY_OPTS: ${{ github.event.inputs.additional_copy_opts }}
+  DRY_RUN: ${{ github.event.inputs.dry_run }}
+
+jobs:
+  skopeo-copy:
+    name: Copy image with skopeo
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show inputs
+        run: |
+          echo "SOURCE=$SOURCE"
+          echo "TARGET=$TARGET"
+          echo "SOURCE_TRANSPORT=$SOURCE_TRANSPORT"
+          echo "TARGET_TRANSPORT=$TARGET_TRANSPORT"
+          echo "COPY_ALL=$COPY_ALL"
+          echo "PLATFORM=$PLATFORM"
+          echo "SRC_TLS_VERIFY=$SRC_TLS_VERIFY"
+          echo "DEST_TLS_VERIFY=$DEST_TLS_VERIFY"
+          echo "PRESERVE_DIGESTS=$PRESERVE_DIGESTS"
+          echo "REMOVE_SIGNATURES=$REMOVE_SIGNATURES"
+          echo "RETRY_TIMES=$RETRY_TIMES"
+          echo "DRY_RUN=$DRY_RUN"
+
+      - name: Install skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y skopeo
+          skopeo --version
+
+      - name: Build refs and copy
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          resolve_docker_target() {
+            local t="$1"
+            local first_segment
+            first_segment="$(echo "$t" | cut -d'/' -f1)"
+            if [[ "$first_segment" == *.* || "$first_segment" == *:* || "$first_segment" == "localhost" ]]; then
+              echo "$t"
+              return 0
+            fi
+
+            if [[ -z "${ALIYUN_REGISTRY:-}" || -z "${ALIYUN_NAME_SPACE:-}" ]]; then
+              echo "ALIYUN_REGISTRY 或 ALIYUN_NAME_SPACE 未配置，且 target 不是完整镜像名" >&2
+              return 1
+            fi
+            echo "${ALIYUN_REGISTRY}/${ALIYUN_NAME_SPACE}/${t}"
+          }
+
+          source_ref="${SOURCE_TRANSPORT}://${SOURCE}"
+          target_resolved="$TARGET"
+          if [[ "$TARGET_TRANSPORT" == "docker" ]]; then
+            target_resolved="$(resolve_docker_target "$TARGET")"
+          fi
+          target_ref="${TARGET_TRANSPORT}://${target_resolved}"
+
+          copy_cmd=(skopeo copy)
+          copy_cmd+=(--src-tls-verify="${SRC_TLS_VERIFY}")
+          copy_cmd+=(--dest-tls-verify="${DEST_TLS_VERIFY}")
+          copy_cmd+=(--retry-times "${RETRY_TIMES}")
+
+          if [[ "${COPY_ALL}" == "true" ]]; then
+            copy_cmd+=(--all)
+          fi
+
+          if [[ "${PRESERVE_DIGESTS}" == "true" ]]; then
+            copy_cmd+=(--preserve-digests)
+          fi
+
+          if [[ "${REMOVE_SIGNATURES}" == "true" ]]; then
+            copy_cmd+=(--remove-signatures)
+          fi
+
+          if [[ -n "${PLATFORM:-}" && "${COPY_ALL}" != "true" ]]; then
+            IFS='/' read -r platform_os platform_arch _ <<< "${PLATFORM}"
+            if [[ -z "${platform_os:-}" || -z "${platform_arch:-}" ]]; then
+              echo "platform 格式错误，请使用 linux/amd64 或 linux/arm64" >&2
+              exit 1
+            fi
+            copy_cmd+=(--override-os "${platform_os}")
+            copy_cmd+=(--override-arch "${platform_arch}")
+          fi
+
+          if [[ -n "${SOURCE_REGISTRY_USER:-}" && -n "${SOURCE_REGISTRY_PASSWORD:-}" ]]; then
+            copy_cmd+=(--src-creds "${SOURCE_REGISTRY_USER}:${SOURCE_REGISTRY_PASSWORD}")
+          fi
+
+          if [[ "$TARGET_TRANSPORT" == "docker" && -n "${ALIYUN_REGISTRY_USER:-}" && -n "${ALIYUN_REGISTRY_PASSWORD:-}" ]]; then
+            copy_cmd+=(--dest-creds "${ALIYUN_REGISTRY_USER}:${ALIYUN_REGISTRY_PASSWORD}")
+          fi
+
+          if [[ -n "${ADDITIONAL_COPY_OPTS:-}" ]]; then
+            read -r -a extra_opts <<< "${ADDITIONAL_COPY_OPTS}"
+            copy_cmd+=("${extra_opts[@]}")
+          fi
+
+          copy_cmd+=("${source_ref}" "${target_ref}")
+
+          echo "Final source ref: ${source_ref}"
+          echo "Final target ref: ${target_ref}"
+          printf 'Final command: %q ' "${copy_cmd[@]}"
+          printf '\n'
+
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            echo "DRY_RUN=true, skip copy."
+            exit 0
+          fi
+
+          "${copy_cmd[@]}"
+          echo "Copy completed."
