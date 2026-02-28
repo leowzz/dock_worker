@@ -44,4 +44,5 @@ package-dir = {"dock_worker" = "dock_worker"}
 [project.scripts]
 dock_worker = "dock_worker.cli:main"
 dw = "dock_worker.cli:main"
+dws = "dock_worker.cli:main_skopeo"
 dclone = "dock_worker.cli:main"

@@ -8,8 +8,11 @@ cli_desc = """
 Github Action Workflow Trigger.
 """
 
+DEFAULT_DW_WORKFLOW = "ApiDockerImagePusher"
+DEFAULT_DWS_WORKFLOW = "ApiSkopeoImageCopier"
 
-def main():
+
+def run_cli(default_workflow_name: str):
     # Initialize argument parser
     parser = argparse.ArgumentParser(description=cli_desc)
     parser.add_argument("source", type=str, nargs="?", help="Source Image URL")
@@ -41,7 +44,8 @@ def main():
         parser.print_help()
         return
 
-    from dock_worker.trigger import ImageArgs, action_trigger
+    from dock_worker.trigger import ImageArgs, GitHubActionManager
+    action_trigger = GitHubActionManager()
     # Get workflows
     workflows = action_trigger.workflows
     if not workflows:
@@ -49,6 +53,17 @@ def main():
         return
 
     if args.list_workflows:
+        show_workflows(workflows)
+        return
+
+    selected_workflow_name = args.workflow or default_workflow_name
+    action_trigger.workflow_name = selected_workflow_name
+    action_trigger.workflow = next(
+        (wf for wf in workflows.workflows if wf.name == selected_workflow_name),
+        None,
+    )
+    if not action_trigger.workflow:
+        logger.error(f"Workflow `{selected_workflow_name}` not found.")
         show_workflows(workflows)
         return
 
@@ -62,10 +77,19 @@ def main():
         if args.command == "fork":
             if not (job_info := action_trigger.fork_image(image_args=image_args, test_mode=args.test_mode)):
                 logger.error("Fork image failed")
+                return
             action_trigger.wait_for_workflow_complete(job_info)
         elif args.command == "pull":
             if not action_trigger.fork_and_pull(image_args=image_args, test_mode=args.test_mode):
                 logger.error("Fork and pull image failed")
+
+
+def main():
+    run_cli(DEFAULT_DW_WORKFLOW)
+
+
+def main_skopeo():
+    run_cli(DEFAULT_DWS_WORKFLOW)
 
 
 def show_workflows(workflows):
