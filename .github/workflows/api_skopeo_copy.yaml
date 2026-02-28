@@ -6,76 +6,24 @@ on:
   workflow_dispatch:
     inputs:
       source:
-        description: '源镜像引用（不带协议），例如 `docker.io/library/ubuntu:22.04` 或 `./bundle/ubuntu.oci`'
+        description: '源镜像（必填）。可填 `docker://...` 全引用，或简写 `nvcr.io/nvidia/tritonserver:25.10-py3`（默认按 docker）'
         required: true
         type: string
       target:
-        description: '目标镜像引用（不带协议）。docker 目标可传完整名，或仅传 `{repo}/{image}:{tag}`（自动拼阿里云仓库）'
+        description: '目标镜像（必填）。可填 `docker://...` 全引用，或简写 `repo/image:tag`（自动拼阿里云命名空间）'
         required: true
         type: string
-      source_transport:
-        description: '源传输协议'
-        required: true
-        default: 'docker'
-        type: choice
-        options:
-          - docker
-          - docker-archive
-          - oci
-          - oci-archive
-          - dir
-      target_transport:
-        description: '目标传输协议'
-        required: true
-        default: 'docker'
-        type: choice
-        options:
-          - docker
-          - docker-archive
-          - oci
-          - oci-archive
-          - dir
-      copy_all:
-        description: '复制多架构 manifest（推荐，等价 skopeo --all）'
-        required: true
-        default: true
-        type: boolean
       platform:
-        description: '单架构复制时生效，格式 `linux/amd64` 或 `linux/arm64`（copy_all=true 时忽略）'
+        description: '可选。指定则复制单架构，如 `linux/amd64` 或 `linux/arm64`；不填默认复制多架构'
         required: false
         type: string
-      src_tls_verify:
-        description: '校验源端 TLS 证书'
-        required: true
-        default: true
-        type: boolean
-      dest_tls_verify:
-        description: '校验目标 TLS 证书'
-        required: true
-        default: true
-        type: boolean
-      preserve_digests:
-        description: '尽量保持 digest 不变（仓库不支持时可能失败）'
-        required: true
-        default: false
-        type: boolean
-      remove_signatures:
-        description: '移除镜像签名'
-        required: true
-        default: false
-        type: boolean
-      retry_times:
-        description: '失败重试次数'
-        required: true
-        default: '3'
-        type: string
       additional_copy_opts:
-        description: '附加 skopeo copy 参数（空格分隔），如 `--format v2s2`'
+        description: '可选。附加 skopeo copy 参数（空格分隔），如 `--src-tls-verify=false --retry-times 5`'
         required: false
         type: string
       dry_run:
-        description: '仅打印最终命令，不执行复制'
-        required: true
+        description: '可选。仅打印最终命令，不执行'
+        required: false
         default: false
         type: boolean
       distinct_id:
@@ -92,15 +40,7 @@ env:
   SOURCE_REGISTRY_PASSWORD: "${{ secrets.SOURCE_REGISTRY_PASSWORD }}"
   SOURCE: ${{ github.event.inputs.source }}
   TARGET: ${{ github.event.inputs.target }}
-  SOURCE_TRANSPORT: ${{ github.event.inputs.source_transport }}
-  TARGET_TRANSPORT: ${{ github.event.inputs.target_transport }}
-  COPY_ALL: ${{ github.event.inputs.copy_all }}
   PLATFORM: ${{ github.event.inputs.platform }}
-  SRC_TLS_VERIFY: ${{ github.event.inputs.src_tls_verify }}
-  DEST_TLS_VERIFY: ${{ github.event.inputs.dest_tls_verify }}
-  PRESERVE_DIGESTS: ${{ github.event.inputs.preserve_digests }}
-  REMOVE_SIGNATURES: ${{ github.event.inputs.remove_signatures }}
-  RETRY_TIMES: ${{ github.event.inputs.retry_times }}
   ADDITIONAL_COPY_OPTS: ${{ github.event.inputs.additional_copy_opts }}
   DRY_RUN: ${{ github.event.inputs.dry_run }}
 
@@ -113,15 +53,7 @@ jobs:
         run: |
           echo "SOURCE=$SOURCE"
           echo "TARGET=$TARGET"
-          echo "SOURCE_TRANSPORT=$SOURCE_TRANSPORT"
-          echo "TARGET_TRANSPORT=$TARGET_TRANSPORT"
-          echo "COPY_ALL=$COPY_ALL"
           echo "PLATFORM=$PLATFORM"
-          echo "SRC_TLS_VERIFY=$SRC_TLS_VERIFY"
-          echo "DEST_TLS_VERIFY=$DEST_TLS_VERIFY"
-          echo "PRESERVE_DIGESTS=$PRESERVE_DIGESTS"
-          echo "REMOVE_SIGNATURES=$REMOVE_SIGNATURES"
-          echo "RETRY_TIMES=$RETRY_TIMES"
           echo "DRY_RUN=$DRY_RUN"
 
       - name: Install skopeo
@@ -134,6 +66,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          # Defaults: full multi-arch copy with TLS verify and basic retry.
+          DEFAULT_SRC_TLS_VERIFY="true"
+          DEFAULT_DEST_TLS_VERIFY="true"
+          DEFAULT_RETRY_TIMES="3"
+
+          parse_or_default_ref() {
+            local input_ref="$1"
+            local default_transport="$2"
+            if [[ "$input_ref" == *"://"* ]]; then
+              echo "$input_ref"
+            else
+              echo "${default_transport}://${input_ref}"
+            fi
+          }
 
           resolve_docker_target() {
             local t="$1"
@@ -151,31 +98,22 @@ jobs:
             echo "${ALIYUN_REGISTRY}/${ALIYUN_NAME_SPACE}/${t}"
           }
 
-          source_ref="${SOURCE_TRANSPORT}://${SOURCE}"
-          target_resolved="$TARGET"
-          if [[ "$TARGET_TRANSPORT" == "docker" ]]; then
+          source_ref="$(parse_or_default_ref "$SOURCE" "docker")"
+
+          if [[ "$TARGET" == *"://"* ]]; then
+            target_ref="$TARGET"
+          else
             target_resolved="$(resolve_docker_target "$TARGET")"
+            target_ref="docker://${target_resolved}"
           fi
-          target_ref="${TARGET_TRANSPORT}://${target_resolved}"
 
           copy_cmd=(skopeo copy)
-          copy_cmd+=(--src-tls-verify="${SRC_TLS_VERIFY}")
-          copy_cmd+=(--dest-tls-verify="${DEST_TLS_VERIFY}")
-          copy_cmd+=(--retry-times "${RETRY_TIMES}")
+          copy_cmd+=(--src-tls-verify="${DEFAULT_SRC_TLS_VERIFY}")
+          copy_cmd+=(--dest-tls-verify="${DEFAULT_DEST_TLS_VERIFY}")
+          copy_cmd+=(--retry-times "${DEFAULT_RETRY_TIMES}")
 
-          if [[ "${COPY_ALL}" == "true" ]]; then
-            copy_cmd+=(--all)
-          fi
-
-          if [[ "${PRESERVE_DIGESTS}" == "true" ]]; then
-            copy_cmd+=(--preserve-digests)
-          fi
-
-          if [[ "${REMOVE_SIGNATURES}" == "true" ]]; then
-            copy_cmd+=(--remove-signatures)
-          fi
-
-          if [[ -n "${PLATFORM:-}" && "${COPY_ALL}" != "true" ]]; then
+          # If platform is not provided, keep full manifest list.
+          if [[ -n "${PLATFORM:-}" ]]; then
             IFS='/' read -r platform_os platform_arch _ <<< "${PLATFORM}"
             if [[ -z "${platform_os:-}" || -z "${platform_arch:-}" ]]; then
               echo "platform 格式错误，请使用 linux/amd64 或 linux/arm64" >&2
@@ -183,13 +121,15 @@ jobs:
             fi
             copy_cmd+=(--override-os "${platform_os}")
             copy_cmd+=(--override-arch "${platform_arch}")
+          else
+            copy_cmd+=(--all)
           fi
 
           if [[ -n "${SOURCE_REGISTRY_USER:-}" && -n "${SOURCE_REGISTRY_PASSWORD:-}" ]]; then
             copy_cmd+=(--src-creds "${SOURCE_REGISTRY_USER}:${SOURCE_REGISTRY_PASSWORD}")
           fi
 
-          if [[ "$TARGET_TRANSPORT" == "docker" && -n "${ALIYUN_REGISTRY_USER:-}" && -n "${ALIYUN_REGISTRY_PASSWORD:-}" ]]; then
+          if [[ "${target_ref}" == docker://* && -n "${ALIYUN_REGISTRY_USER:-}" && -n "${ALIYUN_REGISTRY_PASSWORD:-}" ]]; then
             copy_cmd+=(--dest-creds "${ALIYUN_REGISTRY_USER}:${ALIYUN_REGISTRY_PASSWORD}")
           fi
 
