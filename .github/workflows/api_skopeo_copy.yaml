@@ -95,8 +95,12 @@ jobs:
             local t="$1"
             local first_segment
             local aliyun_registry_normalized
+            local has_slash="false"
+            if [[ "$t" == */* ]]; then
+              has_slash="true"
+            fi
             first_segment="$(echo "$t" | cut -d'/' -f1)"
-            if [[ "$first_segment" == *.* || "$first_segment" == *:* || "$first_segment" == "localhost" ]]; then
+            if [[ "$has_slash" == "true" && ( "$first_segment" == *.* || "$first_segment" == *:* || "$first_segment" == "localhost" ) ]]; then
               echo "$t"
               return 0
             fi
