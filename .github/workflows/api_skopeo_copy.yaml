@@ -82,9 +82,19 @@ jobs:
             fi
           }
 
+          normalize_registry_host() {
+            local host="$1"
+            host="${host#docker://}"
+            host="${host#https://}"
+            host="${host#http://}"
+            host="${host%%/}"
+            echo "$host"
+          }
+
           resolve_docker_target() {
             local t="$1"
             local first_segment
+            local aliyun_registry_normalized
             first_segment="$(echo "$t" | cut -d'/' -f1)"
             if [[ "$first_segment" == *.* || "$first_segment" == *:* || "$first_segment" == "localhost" ]]; then
               echo "$t"
@@ -95,7 +105,14 @@ jobs:
               echo "ALIYUN_REGISTRY 或 ALIYUN_NAME_SPACE 未配置，且 target 不是完整镜像名" >&2
               return 1
             fi
-            echo "${ALIYUN_REGISTRY}/${ALIYUN_NAME_SPACE}/${t}"
+            aliyun_registry_normalized="$(normalize_registry_host "${ALIYUN_REGISTRY}")"
+            echo "${aliyun_registry_normalized}/${ALIYUN_NAME_SPACE}/${t}"
+          }
+
+          extract_registry_from_docker_ref() {
+            local docker_ref="$1"
+            local without_scheme="${docker_ref#docker://}"
+            echo "${without_scheme%%/*}"
           }
 
           source_ref="$(parse_or_default_ref "$SOURCE" "docker")"
@@ -142,6 +159,26 @@ jobs:
 
           echo "Final source ref: ${source_ref}"
           echo "Final target ref: ${target_ref}"
+
+          # Preflight login to make auth errors explicit before copy starts.
+          if [[ "${target_ref}" == docker://* ]]; then
+            target_registry="$(extract_registry_from_docker_ref "${target_ref}")"
+            echo "Resolved target registry: ${target_registry}"
+            if [[ -n "${ALIYUN_REGISTRY_USER:-}" && -n "${ALIYUN_REGISTRY_PASSWORD:-}" ]]; then
+              echo "Preflight login to target registry with ALIYUN_REGISTRY_USER"
+              skopeo login --username "${ALIYUN_REGISTRY_USER}" --password "${ALIYUN_REGISTRY_PASSWORD}" "${target_registry}"
+            else
+              echo "Target is docker transport but ALIYUN_REGISTRY_USER/ALIYUN_REGISTRY_PASSWORD is empty" >&2
+              exit 1
+            fi
+          fi
+
+          if [[ "${source_ref}" == docker://* && -n "${SOURCE_REGISTRY_USER:-}" && -n "${SOURCE_REGISTRY_PASSWORD:-}" ]]; then
+            source_registry="$(extract_registry_from_docker_ref "${source_ref}")"
+            echo "Preflight login to source registry: ${source_registry}"
+            skopeo login --username "${SOURCE_REGISTRY_USER}" --password "${SOURCE_REGISTRY_PASSWORD}" "${source_registry}"
+          fi
+
           printf 'Final command: %q ' "${copy_cmd[@]}"
           printf '\n'
 
