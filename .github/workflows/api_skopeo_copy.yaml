@@ -1,6 +1,6 @@
 # https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#workflow_dispatch
 name: ApiSkopeoImageCopier
-run-name: Copy ${{ inputs.source }} -> ${{ inputs.target }} by @${{ github.actor }} [${{ inputs.distinct_id || 'N/A' }}]
+run-name: Copy ${{ inputs.source }} -> ${{ inputs.target || 'auto-from-source' }} by @${{ github.actor }} [${{ inputs.distinct_id || 'N/A' }}]
 
 on:
   workflow_dispatch:
@@ -10,8 +10,8 @@ on:
         required: true
         type: string
       target:
-        description: '目标镜像（必填）。可填 `docker://...` 全引用，或简写 `repo/image:tag`（自动拼阿里云命名空间）'
-        required: true
+        description: '目标镜像（可选）。可填 `docker://...` 全引用，或简写 `repo/image:tag`（自动拼阿里云命名空间）；不填时自动从 source 推导'
+        required: false
         type: string
       platform:
         description: '可选。指定则复制单架构，如 `linux/amd64` 或 `linux/arm64`；不填默认复制多架构'
@@ -119,12 +119,36 @@ jobs:
             echo "${without_scheme%%/*}"
           }
 
+          infer_target_from_source() {
+            local src="$1"
+            local src_no_scheme="$src"
+            local src_path
+            local src_last
+            if [[ "$src_no_scheme" == *"://"* ]]; then
+              src_no_scheme="${src_no_scheme#*://}"
+            fi
+            src_path="${src_no_scheme#*/}"
+            src_last="${src_path##*/}"
+            src_last="${src_last%%@*}"
+            if [[ -z "$src_last" ]]; then
+              echo "无法从 source 自动推导 target，请手动传入 target" >&2
+              return 1
+            fi
+            echo "$src_last"
+          }
+
           source_ref="$(parse_or_default_ref "$SOURCE" "docker")"
 
-          if [[ "$TARGET" == *"://"* ]]; then
-            target_ref="$TARGET"
+          target_input="${TARGET:-}"
+          if [[ -z "${target_input}" ]]; then
+            target_input="$(infer_target_from_source "$SOURCE")"
+            echo "TARGET is empty, inferred target: ${target_input}"
+          fi
+
+          if [[ "$target_input" == *"://"* ]]; then
+            target_ref="$target_input"
           else
-            target_resolved="$(resolve_docker_target "$TARGET")"
+            target_resolved="$(resolve_docker_target "$target_input")"
             target_ref="docker://${target_resolved}"
           fi
 
